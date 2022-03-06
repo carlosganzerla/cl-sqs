@@ -4,10 +4,10 @@ CREATE EXTENSION IF NOT EXISTS uuid-ossp;
 CREATE TABLE queue (
     id uuid NOT NULL PRIMARY KEY DEFAULT uuid_generate_v4(),
     deduplication_id varchar(128) NOT NULL UNIQUE,
-    payload jsonb NOT NULL,
+    payload varchar(65535) NOT NULL,
     created_at timestamptz NOT NULL DEFAULT NOW(),
     visible_at timestamptz NOT NULL, 
-    expirest_at timestamptz NOT NULL,
+    expires_at timestamptz NOT NULL,
     read_count integer NOT NULL DEFAULT 0
 );
 
@@ -35,7 +35,7 @@ FROM
 WHERE
     queue.id = next_message.id
 RETURNING
-    queue.*;
+    queue.payload;
 
 -- ENQUEUE
 INSERT INTO
@@ -43,18 +43,27 @@ INSERT INTO
         payload,
         deduplication_id,
         visible_at,
-        expirest_at
+        expires_at
     )
     VALUES (
         $1,
-        COALESCE($2, encode(sha256($1::jsonb::text::bytea), 'base64')),
-        visible_at = NOW() + $3 * INTERVAL '1 SECOND',
-        expirest_at = NOW() + $4 * INTERVAL '1 HOUR'
+        COALESCE($2, encode(sha256($1), 'base64')),
+        NOW() + $3 * INTERVAL '1 SECOND',
+        NOW() + $4 * INTERVAL '1 HOUR'
     )
-RETURNING *;
+ON CONFLICT (deduplication_id)
+DO NOTHING
+RETURNING json_build_object(
+    'id', queue.id,
+    'payload_hash', md5(payload)
+);
 
 -- DELETE
-DELETE FROM queue WHERE id = $1;
+DELETE FROM 
+    queue
+WHERE
+    id = $1
+RETURNING json_build_object('id', queue.id);
 
 -- PATCH
 UPDATE
@@ -63,4 +72,4 @@ SET
     visible_at = NOW() + $2 * INTERVAL '1 SECOND'
 WHERE
     id = $1
-RETURNING *;
+RETURNING json_build_object('id', queue.id);
