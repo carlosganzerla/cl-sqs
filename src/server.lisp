@@ -2,15 +2,16 @@
 
 (defvar *request*)
 
-(defparameter *allowed-contents* '("application/json"))
+(defvar *allowed-contents* '("application/json"))
 
-(defparameter *allowed-methods* '(:GET :POST))
+(defvar *allowed-methods* '(:GET :POST))
 
-(defparameter *allowed-paths* '("/"))
+(defvar *allowed-paths* '("/queue"))
 
 
 (defun request-handler (*request*)
   (with-proplist-items (path-info request-method content-type) *request*
+    (print *request*)
     (if (and (member request-method *allowed-methods*)
              (member path-info *allowed-paths* :test #'string=)
              (or (member content-type *allowed-contents* :test #'string=)

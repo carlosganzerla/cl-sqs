@@ -2,7 +2,7 @@
   :version "0.1.0"
   :author "Carlo Sganzerla"
   :license "MIT"
-  :depends-on (#:woo #:flexi-streams)
+  :depends-on (#:woo #:flexi-streams #:postmodern)
   :pathname "src/"
   :components ((:file "package")
                (:file "utils")

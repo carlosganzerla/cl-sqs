@@ -8,3 +8,4 @@
                      `(,symbol (getf ,place ,(symbol-to-kw symbol))))
                    slots))
      ,@body))
+
