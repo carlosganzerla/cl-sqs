@@ -19,12 +19,11 @@
                        (lambda (def)
                          `(,(car def) 
                             (let* ((parser (or ,(getf def :parser) #'identity))
-                                   (value (funcall parser (cadr field))))
-                              (if value
-                                  (if ,(cadr def)
-                                      (list (car field) value)
-                                      (return-from ,name (values nil field)))
-                                  (list (car field) (getf field :default))))))
+                                   (parsed (or (funcall parser (cadr field))))
+                                   (value (or parsed ,(getf def :default))))
+                              (if ,(cadr def)
+                                  (list (car field) value)
+                                  (return-from ,name (values nil field))))))
                        definitions)))
                (remove-if-not (lambda (field)
                                 (assoc (car field) ',definitions)) alist))))
@@ -33,16 +32,16 @@
 (defschema change-visibility-schema 
            (:visibility-timeout (>= +visibility-max+ value +visibility-min+)
             :parser #'parse-integer)
-           (:id (= (length value) 10)))
+           (:id (= (length value) 10) :default "1234567890"))
 
-(defun validate (param)
+(defschema enqueue-schema 
+           (:visibility-timeout (>= +visibility-max+ value +visibility-min+)
+            :parser #'parse-integer)
+           (:deduplication-id (= (length value) 10))
+           (:deduplication-id (= (length value) 10))
+           )
 
-  )
 
-((:visibility-timeout (if value
-                          (>= +visibility-max+ value +visibility-min+)
-                          +visibility-default+))
- (:id (and value (= 10 (length value)))))
 
 (change-visibility-schema '((:visibility-timeout "500")
-                            (:id "2123456780")))
+                            (:id nil)))
