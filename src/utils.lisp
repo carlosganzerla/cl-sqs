@@ -3,9 +3,6 @@
 (defun symbol-to-kw (symbol)
   (intern (symbol-name symbol) :keyword))
 
-(defun safe-parse-int (val)
-  (ignore-errors (parse-integer val)))
-
 (defun str-to-kw (str)
   (intern (string-upcase str) :keyword))
 

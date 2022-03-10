@@ -32,8 +32,7 @@
                           (case (car field)
                             ,@(mapcar 
                                 (lambda (def)
-                                  (%validation-case name def
-                                                    'field))
+                                  (%validation-case name def 'field))
                                 definitions)))
                         defined)))
       (values t sanitized))))
@@ -41,22 +40,24 @@
 (defschema change-visibility-schema 
            (:visibility-timeout (>= +visibility-max+ value +visibility-min+)
             :parser #'parse-integer)
-           (:id (= (length value) 10) :default "1234567890"))
+           (:id (= (length value) 10) :default "carlo"))
 
 (defschema enqueue-schema 
            (:visibility-timeout (>= +visibility-max+ value +visibility-min+)
+            :default +visibility-default+
             :parser #'parse-integer)
-           (:deduplication-id (= (length value) 10))
-           (:deduplication-id (= (length value) 10))
-           )
+           (:deduplication-id (<= (length value) 128)
+            :default :NULL)
+           (:retention-timeout (>= +retention-max+ value +retention-min+)
+            :parser #'parse-integer
+            :default +retention-default+))
 
+(defschema dequeue-schema 
+           (:visibility-timeout (>= +visibility-max+ value +visibility-min+)
+            :default +visibility-default+
+            :parser #'parse-integer))
 
+(defschema delete-message-schema 
+           (:id (= (length value) 10)))
 
-(change-visibility-schema '((:visibility-timeout "500")
-                            (:id nil)))
-
-(change-visibility-schema '((:visibility-timeout "bunda")
-                            (:id nil)))
-
-(case t
-  (:id 1))
+(dequeue-schema '((:visibility-timeout "-3213121")))
