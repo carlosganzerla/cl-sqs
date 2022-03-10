@@ -6,7 +6,7 @@
   :pathname "src/"
   :components ((:file "package")
                (:file "utils")
-               (:file "model")
+               (:file "schema")
                (:file "db")
                (:file "server"))
   :description "A lightweight self contained SQS-like queue")

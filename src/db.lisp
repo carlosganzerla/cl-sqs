@@ -17,13 +17,13 @@
   `(with-pgsql (postmodern:query ,@args)))
 
 
-(defun enqueue (payload &key (deduplication-id :NULL)
-                        (visibility-timeout 0)
-                        (retention-timeout *retention-timeout*))
+(defun enqueue (payload &key deduplication-id
+                        visibility-timeout
+                        retention-timeout)
   (query +enqueue+ payload deduplication-id visibility-timeout 
          retention-timeout :single))
 
-(defun dequeue (&key (visibility-timeout *visibility-timeout*))
+(defun dequeue (&key visibility-timeout)
   (query +dequeue+ visibility-timeout :single))
 
 (defun change-visibility (id timeout)

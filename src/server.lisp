@@ -32,10 +32,10 @@
       (read-sequence octets (getf *request* :raw-body)))
     (flexi-streams:octets-to-string octets)))
 
-(defun validate-params (mandatory &optional non-mandatory)
+(defun validate-params (schema)
   (let ((raw-qs (getf *request* :query-string))
-        (qs (subseq 0 (min +max-url-size+ (length raw-qs))) raw-qs))
-    (parse-query-string raw-qs)))
+        (qs (subseq 0 (min +max-url-size+ (length raw-qs)) raw-qs)))
+    (funcall schema (parse-query-string raw-qs))))
 
 (defun validate-content-type (content-type)
   (unless (equal content-type (getf *request* :content-type))
@@ -56,17 +56,17 @@
 (defun patch-handler ()
   (and (validate-content-type nil)
        (validate-path +path+)
-       (validate-params '(:id :visibility-timeout))))
+       (validate-params #'change-visibility-schema)))
 
 (defun delete-handler ()
   (and (validate-content-type nil) 
        (validate-path +path+)
-       (validate-params '(:id))))
+       (validate-params #'delete-message-schema)))
 
 (defun post-handler ()
   (and (validate-content-type +json-content+)
        (validate-path +path+)
-       (validate-params nil '(:deduplication-id :visibility-timeout))))
+       (validate-params #'enqueue-schema)))
 
 (defun method-handler ()
   (case (getf *request* :request-method)

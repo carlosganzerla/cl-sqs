@@ -9,25 +9,34 @@
 (defconstantsafe +retention-default+ 24) 
 
 
+(defun %validation-case (name def field)
+  `(,(car def) 
+     (let* ((parser (or ,(getf def :parser) #'identity))
+            (default ,(getf def :default)))
+       (cond ((and (not (cadr ,field)) default)
+              (list (car ,field) default))
+             ((and (cadr ,field))
+              (let ((value (ignore-errors (funcall parser (cadr ,field)))))
+                (if (and value ,(cadr def))
+                    (list (car ,field) value)
+                    (return-from ,name (values nil ,field)))))
+             (t (return-from ,name (values nil ,field)))))))
+
 (defmacro defschema (name &rest definitions)
   `(defun ,name (alist)
-     (let ((sanitized 
-             (mapcar 
-               (lambda (field)
-                 (case (car field)
-                   ,@(mapcar 
-                       (lambda (def)
-                         `(,(car def) 
-                            (let* ((parser (or ,(getf def :parser) #'identity))
-                                   (parsed (or (funcall parser (cadr field))))
-                                   (value (or parsed ,(getf def :default))))
-                              (if ,(cadr def)
-                                  (list (car field) value)
-                                  (return-from ,name (values nil field))))))
-                       definitions)))
-               (remove-if-not (lambda (field)
-                                (assoc (car field) ',definitions)) alist))))
-       (values t sanitized))))
+    (let* ((defined (remove-if-not (lambda (field)
+                                     (assoc (car field) ',definitions))
+                                   alist))
+           (sanitized (mapcar 
+                        (lambda (field)
+                          (case (car field)
+                            ,@(mapcar 
+                                (lambda (def)
+                                  (%validation-case name def
+                                                    'field))
+                                definitions)))
+                        defined)))
+      (values t sanitized))))
 
 (defschema change-visibility-schema 
            (:visibility-timeout (>= +visibility-max+ value +visibility-min+)
@@ -45,3 +54,9 @@
 
 (change-visibility-schema '((:visibility-timeout "500")
                             (:id nil)))
+
+(change-visibility-schema '((:visibility-timeout "bunda")
+                            (:id nil)))
+
+(case t
+  (:id 1))

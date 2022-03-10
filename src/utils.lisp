@@ -3,6 +3,9 @@
 (defun symbol-to-kw (symbol)
   (intern (symbol-name symbol) :keyword))
 
+(defun safe-parse-int (val)
+  (ignore-errors (parse-integer val)))
+
 (defun str-to-kw (str)
   (intern (string-upcase str) :keyword))
 
@@ -23,19 +26,19 @@
       (do ((c (read-char i nil nil)
               (read-char i nil nil)))
           ((null c))
-        (case c
-          (#\+ (princ #\space s))
+          (case c
+            (#\+ (princ #\space s))
 
-          ;; 2-digit escaped ascii code
-          (#\% (let ((c1 (read-char i nil nil))
-                     (c2 (read-char i nil nil)))
-                 (when (and c1 c2)
-                   (let ((n1 (parse-integer (string c1) :radix 16))
-                         (n2 (parse-integer (string c2) :radix 16)))
-                     (princ (code-char (logior (ash n1 4) n2)) s)))))
+            ;; 2-digit escaped ascii code
+            (#\% (let ((c1 (read-char i nil nil))
+                       (c2 (read-char i nil nil)))
+                   (when (and c1 c2)
+                     (let ((n1 (parse-integer (string c1) :radix 16))
+                           (n2 (parse-integer (string c2) :radix 16)))
+                       (princ (code-char (logior (ash n1 4) n2)) s)))))
 
-          ;; just a normal character
-          (otherwise (write-char c s)))))))
+            ;; just a normal character
+            (otherwise (write-char c s)))))))
 
 (defun parse-query-string (qs)
   "Return an prop list of query string parameters."
