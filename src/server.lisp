@@ -36,9 +36,9 @@
   (let* ((raw-qs (getf *request* :query-string))
          (qs (subseq raw-qs 0 (min +max-url-size+ (length raw-qs)))))
     (multiple-value-bind (success params)
-      (funcall schema (print (parse-query-string qs)))
+      (print (funcall schema (parse-query-string qs)))
       (if success
-          (make-success (format nil "~A" params))
+          (make-success (format nil "~A" (print params)))
           (make-error 422)))))
 
 (defun validate-content-type (content-type)

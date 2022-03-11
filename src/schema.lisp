@@ -9,33 +9,32 @@
 (defconstantsafe +retention-default+ 24) 
 
 
-(defun %validation-case (name def field)
-  `(,(car def) 
-     (let* ((parser (or ,(getf def :parser) #'identity))
-            (default ,(getf def :default)))
-       (cond ((and (not (cadr ,field)) default)
-              (list (car ,field) default))
-             ((and (cadr ,field))
-              (let ((value (ignore-errors (funcall parser (cadr ,field)))))
-                (if (and value ,(cadr def))
-                    (list (car ,field) value)
-                    (return-from ,name (values nil ,field)))))
-             (t (return-from ,name (values nil ,field)))))))
+(defun validate-fields (alist definitions)
+  (let ((failed)) 
+    (values (mapcar 
+              (lambda (def)
+                (let* ((field (assoc (car def) alist))
+                       (parser (or (getf (cadr def) :parser) #'identity))
+                       (value (if (car field)
+                                  (and (cadr field)
+                                       (ignore-errors
+                                         (funcall parser (cadr field))))
+                                  (getf (cadr def) :default))))
+                  (if (and (print def) (print parser) value 
+                           (funcall (getf (cadr def) :validator) value))
+                      (list (car field) value)
+                      (push (car field) failed))))
+              definitions)
+            failed)))
 
-(defmacro defschema (name &rest definitions)
+(defmacro defschema (name definitions)
   `(defun ,name (alist)
-    (let* ((defined (remove-if-not (lambda (field)
-                                     (assoc (car field) ',definitions))
-                                   alist))
-           (sanitized (mapcar 
-                        (lambda (field)
-                          (case (car field)
-                            ,@(mapcar 
+     (validate-fields alist ',(mapc
                                 (lambda (def)
-                                  (%validation-case name def 'field))
-                                definitions)))
-                        defined)))
-      (values t sanitized))))
+                                  (setf (getf (cadr def) :validator)
+                                        `(lambda (value)
+                                           ,(getf (cadr def) :validator))))
+                                (copy-list definitions)))))
 
 (defschema change-visibility-schema 
            (:visibility-timeout (>= +visibility-max+ value +visibility-min+)
@@ -53,11 +52,16 @@
             :default +retention-default+))
 
 (defschema dequeue-schema 
-           (:visibility-timeout (>= +visibility-max+ value +visibility-min+)
-            :default +visibility-default+
-            :parser #'parse-integer))
+           ((:visibility-timeout 
+              (:validator (>= +visibility-max+ value +visibility-min+)
+               :default +visibility-default+  
+               :parser #'parse-integer))))
 
 (defschema delete-message-schema 
            (:id (= (length value) 10)))
 
-(dequeue-schema '((:visibility-timeout "-3213121")))
+(dequeue-schema '((:visibility-timeout "-23313")))
+(dequeue-schema '((:visibility-timeout "23313")))
+(dequeue-schema '((:visbility-timeout "-23313")))
+
+(list (lambda () 1))
