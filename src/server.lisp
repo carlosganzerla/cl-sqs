@@ -35,11 +35,12 @@
 (defun validate-params (schema)
   (let* ((raw-qs (getf *request* :query-string))
          (qs (subseq raw-qs 0 (min +max-url-size+ (length raw-qs)))))
-    (multiple-value-bind (success params)
-      (print (funcall schema (parse-query-string qs)))
-      (if success
-          (make-success (format nil "~A" (print params)))
-          (make-error 422)))))
+    (handler-case
+      (make-success (format nil "~A" (apply schema (parse-query-string qs))))
+      (error (e)
+             (progn 
+               (format t "~A" e)
+               (make-error 422))))))
 
 (defun validate-content-type (content-type)
   (unless (equal content-type (getf *request* :content-type))
@@ -54,7 +55,7 @@
 (defun get-handler ()
   (and (validate-content-type nil) 
        (validate-path +path+)
-       (validate-params #'dequeue-schema)))
+       (validate-params #'dequeue-params-schema)))
 
 (defun patch-handler ()
   (and (validate-content-type nil)

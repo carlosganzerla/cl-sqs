@@ -1,62 +1,59 @@
 (in-package :cl-sqs)
 
 (defconstantsafe +visibility-default+ 60)
-(defconstantsafe +visibility-max+ 86400)
-(defconstantsafe +visibility-min+ 0)
+
+(deftype visibility-timeout ()
+  `(integer 0 86400))
+
+(deftype retention-timeout ()
+  `(integer 1 336))
+
+(defun length-up-to (x)
+  (>= (length x) 128))
+
+(deftype deduplication-id ()
+  (and (string) (satisfies )))
 
 (defconstantsafe +retention-min+ 1) 
 (defconstantsafe +retention-max+ 336) 
 (defconstantsafe +retention-default+ 24) 
 
-
-(defun validate-fields (alist definitions)
-  (let ((failed)) 
-    (values (mapcar 
-              (lambda (def)
-                (let* ((field (assoc (car def) alist))
-                       (parser (or (getf (cadr def) :parser) #'identity))
-                       (value (if (car field)
-                                  (and (cadr field)
-                                       (ignore-errors
-                                         (funcall parser (cadr field))))
-                                  (getf (cadr def) :default))))
-                  (if (and value 
-                           (funcall (getf (cadr def) :validator) value))
-                      (list (car field) value)
-                      (push (car field) failed))))
-              definitions)
-            failed)))
+(defmacro d-bind (params form &body body)
+  `(destructuring-bind (,@params &allow-other-keys) ,form
+     (declare (ignorable ,@(remove-if (lambda (p)
+                                        (char= (aref (symbol-name p) 0) #\&)) 
+                                      params)))
+     ,@body))
 
 (defmacro defschema (name &body definitions)
-  `(defun ,name (alist)
-     (validate-fields alist ',definitions)))
+  (flet ((conc-symbol (&rest symbols)
+           (intern (apply #'concatenate 'string
+                          (mapcar #'symbol-name symbols)))))
+    `(progn 
+       (defstruct (,name (:constructor ,(conc-symbol '%make- name)))
+         ,@(mapcar (lambda (def)
+                     (d-bind (var &key default type) def
+                       `(,var ,default :type ,type :read-only t)))
+                   definitions))
+       (defun ,(conc-symbol name '-schema)
+         (&key ,@(mapcar (lambda (def)
+                           (d-bind (_ &key default) def
+                             `(,(car def) ,default))) 
+                         definitions))
+         (,(conc-symbol '%make- name)
+           ,@(mapcan (lambda (def)
+                       (d-bind (_ &key parser) def
+                         `(,(symbol-to-kw (car def))
+                            (funcall ,(or parser #'identity) ,(car def)))))
+                     definitions))))))
 
-(defschema change-visibility-schema 
-           (:visibility-timeout (>= +visibility-max+ value +visibility-min+)
-            :parser #'parse-integer)
-           (:id (= (length value) 10) :default "carlo"))
+(defschema dequeue-params
+  (visibility-timeout :default +visibility-default+
+                      :parser #'parse-integer
+                      :type visibility-timeout))
 
-(defschema enqueue-schema 
-           (:visibility-timeout (>= +visibility-max+ value +visibility-min+)
-            :default +visibility-default+
-            :parser #'parse-integer)
-           (:deduplication-id (<= (length value) 128)
-            :default :NULL)
-           (:retention-timeout (>= +retention-max+ value +retention-min+)
-            :parser #'parse-integer
-            :default +retention-default+))
+(ignore-errors (dequeue-params-schema :visibility-timeout "43"))
 
-(defschema dequeue-schema 
-  `(:visibility-timeout 
-     (:validator ,(lambda (x) (>= +visibility-max+ x +visibility-min+))
-      :default ,+visibility-default+  
-      :parser ,#'parse-integer)))
+(typep -1 'visibility-timeout)
 
-(defschema delete-message-schema 
-  (:id (= (length value) 10)))
-
-(dequeue-schema '((:visibility-timeout "-23313")))
-(dequeue-schema '((:visibility-timeout "23313")))
-(dequeue-schema '((:visbility-timeout "-23313")))
-
-(list (lambda () 1))
+(typep "carlo" '(string 128))

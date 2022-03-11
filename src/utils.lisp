@@ -46,7 +46,7 @@
     for m = (position #\= qs :start p :end n)
 
     ;; join all the pairs into an prop-list, decode values
-    collect (if m
+    nconc (if m
                 (let ((v (url-decode (subseq qs (1+ m) n))))
                   (list (str-to-kw (subseq qs p m)) v))
                 (list (str-to-kw (subseq qs p n)) nil))
@@ -54,3 +54,5 @@
     while n
     ;; offset to the next k/v pair
     do (setf p (1+ n))))
+
+((parse-query-string "a=1&b=2"))
