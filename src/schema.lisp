@@ -20,21 +20,16 @@
                                        (ignore-errors
                                          (funcall parser (cadr field))))
                                   (getf (cadr def) :default))))
-                  (if (and (print def) (print parser) value 
+                  (if (and value 
                            (funcall (getf (cadr def) :validator) value))
                       (list (car field) value)
                       (push (car field) failed))))
               definitions)
             failed)))
 
-(defmacro defschema (name definitions)
+(defmacro defschema (name &body definitions)
   `(defun ,name (alist)
-     (validate-fields alist ',(mapc
-                                (lambda (def)
-                                  (setf (getf (cadr def) :validator)
-                                        `(lambda (value)
-                                           ,(getf (cadr def) :validator))))
-                                (copy-list definitions)))))
+     (validate-fields alist ',definitions)))
 
 (defschema change-visibility-schema 
            (:visibility-timeout (>= +visibility-max+ value +visibility-min+)
@@ -52,13 +47,13 @@
             :default +retention-default+))
 
 (defschema dequeue-schema 
-           ((:visibility-timeout 
-              (:validator (>= +visibility-max+ value +visibility-min+)
-               :default +visibility-default+  
-               :parser #'parse-integer))))
+  `(:visibility-timeout 
+     (:validator ,(lambda (x) (>= +visibility-max+ x +visibility-min+))
+      :default ,+visibility-default+  
+      :parser ,#'parse-integer)))
 
 (defschema delete-message-schema 
-           (:id (= (length value) 10)))
+  (:id (= (length value) 10)))
 
 (dequeue-schema '((:visibility-timeout "-23313")))
 (dequeue-schema '((:visibility-timeout "23313")))
