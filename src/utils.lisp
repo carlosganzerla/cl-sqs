@@ -6,11 +6,20 @@
 (defun str-to-kw (str)
   (intern (string-upcase str) :keyword))
 
-(defun read-file (filename)
-  (with-open-file (stream filename)
-    (let ((contents (make-string (file-length stream))))
-      (read-sequence contents stream)
-      contents)))
+(let ((read-files (make-hash-table)))
+  (defun read-file-lazy (filename)
+    (if (gethash filename read-files)
+        (gethash filename read-files)
+        (with-open-file (stream filename)
+          (let ((contents (make-string (file-length stream))))
+            (read-sequence contents stream)
+            (setf (gethash filename read-files) contents)
+            contents)))))
+
+(defun parse-int (x &optional (type 'integer))
+  (if (integerp x)
+      (the type x)
+      (the type (parse-integer x))))
 
 (defmacro defconstantsafe (sym val)
   `(unless (boundp ',sym)
@@ -37,7 +46,7 @@
             ;; just a normal character
             (otherwise (write-char c s)))))))
 
-(defun parse-query-string (qs)
+(defun parse-qs (qs)
   "Return an prop list of query string parameters."
   (when (and qs (> (length qs) 0))
     (loop

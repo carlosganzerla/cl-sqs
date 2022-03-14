@@ -1,58 +1,64 @@
 (in-package #:cl-sqs)
 
 (defvar *request*)
-(defvar *db*)
+(defvar *content-type*)
+(defvar *db* (make-database))
 
 (defconstantsafe +path+ "/queue")
-(defconstantsafe +json-content+ "application/json")
 (defconstantsafe +max-payload-size+ 65535)
+(defconstantsafe +visibility-default+ 60)
+(defconstantsafe +retention-default+ 24) 
+(defconstantsafe +content-type+ "text/plain") 
+
+(deftype visibility-timeout-t ()
+  `(integer 0 86400))
+
+(deftype retention-timeout-t ()
+  `(integer 1 336))
 
 (define-condition request-error (error)
   ((status-code :initarg :status-code :accessor status-code
                 :type fixnum)))
 
-(defun make-success (content)
-  `(200 (:content-type "text/plain") ,(list content)))
+(defun content (content)
+  `(200 (:content-type ,+content-type+) ,(list content)))
 
-(defun make-empty ()
-  '(204 (:content-type "text/plain") ("")))
-
-(defun make-error (code)
-  `(,code (:content-type "text/plain") ("")))
+(defun empty (code)
+  `(,code (:content-type ,+content-type+) ("")))
 
 (defun abort-with-code (code)
   (error 'request-error :status-code code))
 
-(defmacro with-request ((params &key (path +path+) content-type)
-                        &body body)
+(defmacro with-request (params &body body)
   `(handler-case
-     (destructuring-bind (&key ,@params) (getf *request* :params)
-       (
-        (unless (equal ,path (getf *request* :path-info))
-          (abort-with-code 404))
-        (unless (equal ,content-type (getf *request* :content-type))
-          (abort-with-code 406))
-        ,@body))
+     (destructuring-bind (&key ,@params)(parse-qs (getf *request*
+                                                        :query-string))
+       (unless (string= +path+ (getf *request* :path-info))
+         (abort-with-code 404))
+       (unless (string= +content-type+ (getf *request* :content-type))
+         (abort-with-code 406))
+       ,@body)
      (sb-kernel::arg-count-error () (abort-with-code 422))
      (type-error () (abort-with-code 422))))
 
 (defun get-handler ()
-  (with-request ((visibility-timeout "60"))
-    (execute *db* (parse-integer visibility-timeout))))
+  (with-request ((visibility-timeout +visibility-default+))
+    (dequeue *db* (parse-int visibility-timeout visibility-timeout-t))))
 
 (defun patch-handler ()
   (with-request (visibility-timeout) 
-    (execute *db* (parse-integer visibility-timeout))))
+    (change-visibility *db* (parse-int visibility-timeout
+                                       visibility-timeout-t))))
 
 (defun delete-handler ()
   (with-request (id) 
-    (execute *db* id)))
+    (delete-message *db* id)))
 
 (defun post-handler ()
-  (with-request (&key deduplication-id visibility-timeout
-                      retention-timeout)
-    (execute *db* (parse-integer visibility-timeout))
-    ))
+  (with-request ((deduplication-id :NULL)
+                 (visibility-timeout +visibility-default+)
+                 (retention-timeout +retention-default+))
+    (enqueue *db* (parse-int visibility-timeout visibility-timeout-t))))
 
 (defun method-handler ()
   (case (getf *request* :request-method)
@@ -65,23 +71,11 @@
 
 (defun request-handler (*request*)
   (handler-case 
-    (progn
-      (setf (getf *request* :params))
-      (let ((response (method-handler)))
-        (if response
-            (make-success response)
-            (make-empty))))
-    (request-error (c) (make-error (status-code c)))))
-
+    (let ((response (method-handler)))
+      (if response
+          (content response)
+          (empty 204)))
+    (request-error (c) (empty (status-code c)))))
 
 (defun start ()
   (woo:run #'request-handler))
-
-(defmethod b ((x (integer 1 2))) x)
-(defun a (x) x)
-(destructuring-bind (x) '("a")
-  (declare (x (integer 0 10)))
-  x)
-
-(a)
-

@@ -1,33 +1,37 @@
 (in-package :cl-sqs)
 
-(defconstantsafe +enqueue+ (read-file #p"db/queries/enqueue.sql"))
-(defconstantsafe +dequeue+ (read-file #p"db/queries/dequeue.sql"))
-(defconstantsafe +change-visibility+
-             (read-file #p"db/queries/change_visibility.sql"))
-(defconstantsafe +delete+ (read-file #p"db/queries/delete.sql"))
+(defstruct database
+  (database "postgres" :type string :read-only t)
+  (user "postgres" :type string :read-only t)
+  (password "postgres" :type string :read-only t)
+  (host "postgres" :type string :read-only t)
+  (port 5432 :type integer :read-only t))
+
+(defmacro with-database (db &body body)
+  `(with-slots (database host port user password pooled-p)
+    (postmodern:with-connection  (list database user password host
+                                       :port port
+                                       :pooled-p t)
+      ,@body)))
+
+(defmacro query (db &rest args)
+  `(with-database db (postmodern:query ,@args)))
 
 
-(defvar *with-connection-params* 
-  '("postgres" "postgres" "postgres" "localhost" :pooled-p t))
-
-(defmacro with-pgsql (&body body)
-  `(postmodern:with-connection *with-connection-params* ,@body))
-
-(defmacro query (&rest args)
-  `(with-pgsql (postmodern:query ,@args)))
-
-
-(defun enqueue (payload &key deduplication-id
-                        visibility-timeout
-                        retention-timeout)
-  (query +enqueue+ payload deduplication-id visibility-timeout 
+(defmethod enqueue ((db database) payload &key deduplication-id
+                                  visibility-timeout
+                                  retention-timeout)
+  (query db (read-file-lazy #p"db/queries/enqueue.sql")
+         payload deduplication-id visibility-timeout 
          retention-timeout :single))
 
-(defun dequeue (&key visibility-timeout)
-  (query +dequeue+ visibility-timeout :single))
+(defmethod dequeue ((db database) &key visibility-timeout)
+  (query db (read-file-lazy #p"db/queries/dequeue.sql")
+         visibility-timeout :single))
 
-(defun change-visibility (id timeout)
-  (query +change-visibility+ id timeout))
+(defmethod change-visibility ((db database) id timeout)
+  (query db (read-file #p"db/queries/change_visibility.sql")
+         id timeout))
 
-(defun delete-message (id)
-  (query +delete+ id))
+(defmethod delete-message ((db database) id)
+  (query db (read-file #p"db/queries/delete.sql") id))
