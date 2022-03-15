@@ -1,12 +1,11 @@
 (in-package #:cl-sqs)
 
 (defvar *request*)
-(defvar *content-type*)
-(defvar *db* (make-database))
+(defvar *db*)
 
 (defconstantsafe +path+ "/queue")
 (defconstantsafe +max-payload-size+ 65535)
-(defconstantsafe +content-type+ "text/plain") 
+(defconstantsafe +content-type+ "text/plain")
 
 
 (define-condition request-error (error)
@@ -24,42 +23,34 @@
 
 (defmacro with-request (params &body body)
   `(handler-case
-     (destructuring-bind (&key ,@params)(parse-qs (getf *request*
-                                                        :query-string))
-       (unless (string= +path+ (getf *request* :path-info))
+     (let ((,params (parse-qs (getf *request* :query-string)))) 
+       (unless (equal +path+ (getf *request* :path-info))
          (abort-with-code 404))
-       (unless (string= +content-type+ (getf *request* :content-type))
-         (abort-with-code 406))
        ,@body)
      (sb-kernel::arg-count-error () (abort-with-code 422))
      (type-error () (abort-with-code 422))))
 
-(defun get-handler ()
-  (with-request ((visibility-timeout +visibility-default+))
-    (dequeue *db* (parse-int visibility-timeout visibility-timeout-t))))
+(defun get-handler (params)
+  (dequeue-schema-bind params
+    (dequeue *db* :visibility-timeout visibility-timeout)))
 
-(defun patch-handler ()
-  (with-request (visibility-timeout) 
-    (change-visibility *db* (parse-int visibility-timeout
-                                       visibility-timeout-t))))
+(defun patch-handler (params)
+  )
 
-(defun delete-handler ()
-  (with-request (id) 
-    (delete-message *db* id)))
+(defun delete-handler (params)
+  )
 
-(defun post-handler ()
-  (with-request ((deduplication-id :NULL)
-                 (visibility-timeout +visibility-default+)
-                 (retention-timeout +retention-default+))
-    (enqueue *db* (parse-int visibility-timeout visibility-timeout-t))))
+(defun post-handler (params)
+  )
 
 (defun method-handler ()
-  (case (getf *request* :request-method)
-    (:GET (get-handler))
-    (:DELETE (delete-handler))
-    (:PATCH (patch-handler))
-    (:POST (post-handler))
-    (t (abort-with-code 405))))
+  (with-request params
+    (case (getf *request* :request-method)
+      (:GET (get-handler params))
+      (:DELETE (delete-handler params))
+      (:PATCH (patch-handler params))
+      (:POST (post-handler params))
+      (t (abort-with-code 405)))))
 
 
 (defun request-handler (*request*)
@@ -71,4 +62,5 @@
     (request-error (c) (empty (status-code c)))))
 
 (defun start ()
-  (woo:run #'request-handler))
+  (let ((*db* (make-database)))
+    (woo:run #'request-handler)))

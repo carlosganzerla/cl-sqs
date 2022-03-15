@@ -20,6 +20,21 @@
   `(unless (boundp ',sym)
      (defconstant ,sym ,val)))
 
+(defun tc (val type)
+  (if (typep val type)
+      val
+      (error 'simple-type-error
+             :datum val
+             :expected-type type
+             :format-control
+             "Type ~A not satisfied. Datum: ~A"
+             :format-arguments (list type val))))
+
+(defun car-if-list (x)
+  (if (listp x)
+      (car x)
+      x))
+
 (defun url-decode (url)
   "Decode an encoded URL into a string."
   (with-output-to-string (s)

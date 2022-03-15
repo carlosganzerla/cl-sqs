@@ -1,19 +1,5 @@
 (in-package #:cl-sqs)
 
-(defun tc (val type)
-  (if (typep val type)
-      val
-      (error 'simple-type-error
-             :datum val
-             :expected-type type
-             :format-control
-             "Type ~A not satisfied. Datum: ~A"
-             :format-arguments (list type val))))
-
-(defun car-if-list (x)
-  (if (listp x)
-      (car x)
-      x))
 
 (defmacro defschema (name &body fields)
   (let* ((macro-name (intern (concatenate 'string (string name) "-BIND")))
@@ -44,8 +30,3 @@
 (defschema dequeue-schema
   ((visibility-timeout 60) :target (integer 0 86400)
                            :converter #'parse-integer))
-
-(dequeue-schema '(:visibility-timeout 12))
-
-(dequeue-schema-bind '(:visibility-timeout 12)
-  (print visibility-timeout))
