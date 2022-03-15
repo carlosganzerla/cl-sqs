@@ -16,11 +16,6 @@
             (setf (gethash filename read-files) contents)
             contents)))))
 
-(defun parse-int (x &optional (type 'integer))
-  (if (integerp x)
-      (the type x)
-      (the type (parse-integer x))))
-
 (defmacro defconstantsafe (sym val)
   `(unless (boundp ',sym)
      (defconstant ,sym ,val)))

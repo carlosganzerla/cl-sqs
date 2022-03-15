@@ -6,15 +6,8 @@
 
 (defconstantsafe +path+ "/queue")
 (defconstantsafe +max-payload-size+ 65535)
-(defconstantsafe +visibility-default+ 60)
-(defconstantsafe +retention-default+ 24) 
 (defconstantsafe +content-type+ "text/plain") 
 
-(deftype visibility-timeout-t ()
-  `(integer 0 86400))
-
-(deftype retention-timeout-t ()
-  `(integer 1 336))
 
 (define-condition request-error (error)
   ((status-code :initarg :status-code :accessor status-code
