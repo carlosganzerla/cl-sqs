@@ -1,6 +1,8 @@
 CREATE EXTENSION IF NOT EXISTS pgplsql;
 CREATE EXTENSION IF NOT EXISTS uuid-ossp;
 
+DROP IF EXISTS TABLE queue;
+
 CREATE TABLE queue (
     id uuid NOT NULL PRIMARY KEY DEFAULT uuid_generate_v4(),
     deduplication_id varchar(128) NOT NULL UNIQUE,

@@ -15,5 +15,5 @@ ON CONFLICT (deduplication_id)
 DO NOTHING
 RETURNING json_build_object(
     'id', queue.id,
-    'payload_md5', md5(payload)
+    'payload_md5', md5(queue.payload)
 );

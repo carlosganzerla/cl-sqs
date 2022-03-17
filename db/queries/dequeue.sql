@@ -19,5 +19,7 @@ FROM
     next_message
 WHERE
     queue.id = next_message.id
-RETURNING
-    queue.payload;
+RETURNING json_build_object(
+    'id', queue.id,
+    'payload', queue.payload
+);

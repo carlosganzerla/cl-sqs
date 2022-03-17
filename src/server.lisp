@@ -6,7 +6,7 @@
 
 (defconstantsafe +path+ "/queue")
 (defconstantsafe +max-payload-size+ 65535)
-(defconstantsafe +content-type+ "text/plain")
+(defconstantsafe +content-type+ "application/json")
 
 (define-condition request-error (error)
   ((status-code :initarg :status-code :accessor status-code
@@ -111,4 +111,4 @@
 
 (defun start ()
   (let ((*db* (make-database)))
-    (woo:run #'request-handler)))
+    (woo:run #'request-handler :address "0.0.0.0")))
