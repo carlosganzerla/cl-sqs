@@ -1,6 +1,5 @@
 (in-package #:cl-sqs)
 
-
 (defmacro defschema (name &body fields)
   (let* ((macro-name (intern (concatenate 'string (string name) "-BIND")))
          (field-params (mapcar #'car fields))
@@ -13,7 +12,7 @@
                  (lambda (field)
                    (destructuring-bind (name &key
                                              (target t)
-                                             (converter #'identity)
+                                             (converter '#'identity)
                                              (from 'string)) field
                      (let ((name (car-if-list name)))
                        `(if (typep ,name ',target)
@@ -30,3 +29,10 @@
 (defschema dequeue-schema
   ((visibility-timeout 60) :target (integer 0 86400)
                            :converter #'parse-integer))
+
+(defschema enqueue-schema
+  ((visibility-timeout 60) :target (integer 0 86400)
+                           :converter #'parse-integer)
+  ((retention-timeout 24) :target (integer 1 336)
+                          :converter #'parse-integer)
+  ((deduplication-id :NULL) :target (or (eql :NULL) string)))

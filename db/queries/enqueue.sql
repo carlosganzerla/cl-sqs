@@ -7,7 +7,7 @@ INSERT INTO
     )
     VALUES (
         $1::text,
-        COALESCE($2, encode(sha256($1::bytea), 'base64')),
+        COALESCE($2, hex(sha256($1::bytea))),
         NOW() + $3 * INTERVAL '1 SECOND',
         NOW() + $4 * INTERVAL '1 HOUR'
     )
