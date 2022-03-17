@@ -31,7 +31,7 @@
                            :converter #'parse-integer))
 
 (defschema enqueue-schema
-  ((visibility-timeout 60) :target (integer 0 86400)
+  ((visibility-timeout 0) :target (integer 0 86400)
                            :converter #'parse-integer)
   ((retention-timeout 24) :target (integer 1 336)
                           :converter #'parse-integer)

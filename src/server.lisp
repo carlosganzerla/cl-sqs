@@ -84,18 +84,12 @@
   (dequeue-schema-bind params
     (dequeue *db* :visibility-timeout visibility-timeout)))
 
-(defun patch-handler (params)
-  )
-
-(defun delete-handler (params)
-  )
-
 (defun post-handler (params)
   (let ((payload (read-payload (getf *request* :raw-body)
                                (min +max-payload-size+
                                     (getf *request* :content-length)))))
     (enqueue-schema-bind params
-      (enqueue *db* :deduplication-id deduplication-id
+      (enqueue *db* payload :deduplication-id deduplication-id
                :visibility-timeout visibility-timeout
                :retention-timeout retention-timeout))))
 
@@ -103,8 +97,6 @@
   (with-request params
     (case (getf *request* :request-method)
       (:GET (get-handler params))
-      (:DELETE (delete-handler params))
-      (:PATCH (patch-handler params))
       (:POST (post-handler params))
       (t (abort-with-code 405)))))
 
@@ -115,10 +107,7 @@
       (if response
           (content response)
           (empty 204)))
-    (request-error (c) (empty (status-code c)))
-    (error (c) 
-           (format t "~A" c)
-           (empty 500))))
+    (request-error (c) (empty (status-code c)))))
 
 (defun start ()
   (let ((*db* (make-database)))
