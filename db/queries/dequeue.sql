@@ -21,5 +21,6 @@ WHERE
     queue.id = next_message.id
 RETURNING json_build_object(
     'id', queue.id,
-    'payload', queue.payload
+    'payload', queue.payload,
+    'timestamp', extract(EPOCH from queue.created_at)
 );
