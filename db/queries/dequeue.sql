@@ -19,8 +19,7 @@ FROM
     next_message
 WHERE
     queue.id = next_message.id
-RETURNING json_build_object(
-    'id', queue.id,
-    'payload', queue.payload,
-    'timestamp', extract(EPOCH from queue.created_at)
-);
+RETURNING 
+    queue.id "message-id",
+    queue.payload,
+    extract(EPOCH from queue.created_at)::integer "message-timestamp"

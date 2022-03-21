@@ -59,7 +59,7 @@
       do (setf p (1+ n)))))
 
 
-(defun content (content)
+(defun content (content &rest headers)
   `(200 (:content-type ,+content-type+) ,(list content)))
 
 (defun empty (code)

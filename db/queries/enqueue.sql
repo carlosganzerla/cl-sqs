@@ -13,8 +13,7 @@ INSERT INTO
     )
 ON CONFLICT (deduplication_id)
 DO NOTHING
-RETURNING json_build_object(
-    'id', queue.id,
-    'payload_md5', md5(queue.payload),
-    'timestamp', extract(EPOCH from queue.created_at)
-);
+RETURNING 
+    queue.id "message-id",
+    md5(queue.payload) "message-payload-md5",
+    extract(EPOCH from queue.created_at) "message-timestamp";

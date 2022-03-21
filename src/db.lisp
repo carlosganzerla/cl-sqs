@@ -7,6 +7,12 @@
   (host "localhost" :type string :read-only t)
   (port 5432 :type integer :read-only t))
 
+(defstruct query-row 
+  (message-timestamp :type (or (eql nil) integer) :read-only t)
+  (message-id :type (or (eql nil) string) :read-only t)
+  (payload :type (or (eql nil) string) :read-only t)
+  (message-payload-md5 :type (or (eql nil) integer) :read-only t))
+
 (defmacro with-database (db &body body)
   `(with-slots (database host port user password pooled-p) ,db
      (postmodern:with-connection  (list database user password host
