@@ -22,4 +22,4 @@ WHERE
 RETURNING 
     queue.id "message-id",
     queue.payload,
-    extract(EPOCH from queue.created_at)::integer "message-timestamp"
+    (extract(EPOCH from queue.created_at) * 1000)::bigint "message-timestamp";

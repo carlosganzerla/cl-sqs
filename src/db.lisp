@@ -7,12 +7,6 @@
   (host "localhost" :type string :read-only t)
   (port 5432 :type integer :read-only t))
 
-(defstruct query-row 
-  (message-timestamp :type (or (eql nil) integer) :read-only t)
-  (message-id :type (or (eql nil) string) :read-only t)
-  (payload :type (or (eql nil) string) :read-only t)
-  (message-payload-md5 :type (or (eql nil) integer) :read-only t))
-
 (defmacro with-database (db &body body)
   `(with-slots (database host port user password pooled-p) ,db
      (postmodern:with-connection  (list database user password host
@@ -21,7 +15,7 @@
        ,@body)))
 
 (defmacro query (db &rest args)
-  `(with-database ,db (postmodern:query ,@args)))
+  `(with-database ,db (postmodern:query ,@args :plist)))
 
 
 (defmethod enqueue ((db database) payload &key deduplication-id
@@ -29,11 +23,11 @@
                                   retention-timeout)
   (query db (read-file-lazy #p"db/queries/enqueue.sql")
          payload deduplication-id visibility-timeout 
-         retention-timeout :single))
+         retention-timeout))
 
 (defmethod dequeue ((db database) &key visibility-timeout)
   (query db (read-file-lazy #p"db/queries/dequeue.sql")
-         visibility-timeout :single))
+         visibility-timeout))
 
 (defmethod change-visibility ((db database) id timeout)
   (query db (read-file-lazy #p"db/queries/change_visibility.sql")
