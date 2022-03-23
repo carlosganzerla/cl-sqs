@@ -1,3 +1,4 @@
+(ql:quickload :dexador)
 (defvar *produced*)
 
 (defvar *consumed*)
@@ -38,20 +39,13 @@
          (*consumed* (make-array (list consumers count)))
          (threads (append (loop for x from 0 to (1- producers) collect
                                 (sb-thread:make-thread 
-                                  (lambda (*produced*)
-                                    (producer (print x) count))
-                                  :arguments (list *produced*)))
+                                  (lambda (id *produced*)
+                                    (producer id count))
+                                  :arguments (list x *produced*)))
                           (loop for x from 0 to (1- consumers) collect
                                 (sb-thread:make-thread 
-                                  (lambda (*consumed*)
-                                    (consumer x count))
-                                  :arguments (list *consumed*))))))
+                                  (lambda (id *consumed*)
+                                    (consumer id count))
+                                  :arguments (list x *consumed*))))))
     (loop for thread in threads do (sb-thread:join-thread thread))
-    (print *consumed*)
-    (print *produced*)
     nil))
-
-
-(dexador:post "http://localhost:5000/queue?deduplication-id=3" 
-              :content "dasadsdasdassda")
-(loop for x from 0 to 9 collect x)

@@ -1,8 +1,8 @@
 (in-package #:cl-sqs)
 
 (defvar *request*)
-(defvar *db*)
-
+(defparameter *db* (make-database)) 
+ 
 (defconstantsafe +path+ "/queue")
 (defconstantsafe +max-payload-size+ 65535)
 (defconstantsafe +content-type+ "text/plain")
@@ -105,5 +105,5 @@
       (t (response 405)))))
 
 (defun start ()
-  (let ((*db* (make-database)))
-    (woo:run #'request-handler :address "0.0.0.0")))
+  (woo:run #'request-handler :address "0.0.0.0"
+           :worker-num 4))
