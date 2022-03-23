@@ -7,7 +7,6 @@
 (defconstantsafe +max-payload-size+ 65535)
 (defconstantsafe +content-type+ "text/plain")
 
-
 (defun read-payload (body content-length)
   (let ((octets (make-array content-length)))
     (when content-length (read-sequence octets body))
@@ -75,8 +74,6 @@
           (destructuring-bind (&key ,@params) ,result
             ,@body)
           (response 204)))))
-
-
 
 (defun get-handler (params)
   (dequeue-schema-bind params
