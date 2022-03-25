@@ -14,6 +14,5 @@ INSERT INTO
 ON CONFLICT (deduplication_id)
 DO NOTHING
 RETURNING 
-    queue.id "message-id",
     md5(queue.payload) "message-md5",
     (extract(EPOCH from queue.created_at) * 1000)::bigint "message-timestamp";
