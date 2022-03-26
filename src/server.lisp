@@ -77,10 +77,9 @@
 
 (defun get-handler (params)
   (dequeue-schema-bind params
-    (with-response (payload message-id message-timestamp)
+    (with-response (payload message-timestamp)
                    (dequeue *db* :visibility-timeout visibility-timeout)
                    (response 200 payload
-                             :message-id message-id
                              :message-timestamp message-timestamp))))
 
 (defun post-handler (params)
@@ -88,12 +87,11 @@
                                (min +max-payload-size+
                                     (getf *request* :content-length)))))
     (enqueue-schema-bind params
-      (with-response (message-md5 message-id message-timestamp)
+      (with-response (message-md5 message-timestamp)
                      (enqueue *db* payload :deduplication-id deduplication-id
                               :visibility-timeout visibility-timeout
                               :retention-timeout retention-timeout)
                      (response 201 ""
-                               :message-id message-id
                                :message-timestamp message-timestamp
                                :message-md5 message-md5)))))
 

@@ -26,7 +26,7 @@
          retention-timeout))
 
 (defmethod dequeue ((db database) &key visibility-timeout)
-  (query db (read-file-lazy #p"db/queries/dequeue.sql")
+  (query db (read-file-lazy #p"db/queries/dequeue2.sql")
          visibility-timeout))
 
 (defmethod change-visibility ((db database) id timeout)

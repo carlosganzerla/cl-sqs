@@ -8,8 +8,8 @@ WITH RECURSIVE messages AS (
         FROM
             queue
         WHERE
-            visible_at <= NOW()
-			expires_at <= NOW()
+            visible_at <= NOW() AND
+            expires_at > NOW()
         ORDER BY
             created_at
         LIMIT 1
@@ -30,7 +30,7 @@ WITH RECURSIVE messages AS (
                 queue
             WHERE
                 visible_at <= NOW() AND
-				expires_at <= NOW()
+                expires_at > NOW() AND
                 created_at > messages.created_at
             ORDER BY
                 created_at
