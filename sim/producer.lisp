@@ -1,7 +1,10 @@
 (ql:quickload :dexador)
+(ql:quickload :postmodern)
+(ql:quickload :cl-sqs)
 
 (defvar *produced*)
 (defvar *consumed*)
+(defparameter *db* (cl-sqs::make-database))
 
 (defun producer (id count)
   (dotimes (x count)
@@ -16,15 +19,15 @@
         (setf (aref *produced* id x) content)))))
 
 
-(defun consumer (target counter)
+(defun consumer (target results)
   (do ()
-      ((>= (car counter) target))
+      ((>= (length (car results)) target))
       (multiple-value-bind (resp code)
         (dexador:get "http://localhost:5000/queue?visibility-timeout=86400"
                      :use-connection-pool nil)
         (when (= 200 code)
-          (sb-ext:atomic-incf (car counter)) 
           (let ((content (read-from-string resp)))
+            (sb-ext:atomic-push content (car results))
             (destructuring-bind (&key producer message) content
               (setf (aref *consumed* producer message) content)))))))
 
@@ -32,16 +35,23 @@
 (defun simple-sequential-test (&optional (count 10))
   (let ((*consumed* (make-array (list 1 count)))
         (*produced* (make-array (list 1 count)))
-        (counter (list 0)))
+        (results (list nil)))
     (producer 0 count)
-    (consumer count counter)
-    (print *consumed*)
+    (consumer count results)
+    (print (nreverse (car results)))
     nil))
+
+
+(defun select-results ()
+  (mapcar #'read-from-string
+          (cl-sqs::with-database *db*
+            (postmodern:query "SELECT payload FROM queue ORDER BY id"
+                              :column))))
 
 (defun multi-threaded-test (&key (count 100) (producers 10) (consumers 10))
   (let* ((*produced* (make-array (list producers count)))
          (*consumed* (make-array (list producers count)))
-         (counter (list 0))
+         (results (list nil))
          (threads (append (loop for x from 0 to (1- producers) collect
                                 (sb-thread:make-thread 
                                   (lambda (id *produced*)
@@ -51,7 +61,7 @@
                                 (sb-thread:make-thread 
                                   (lambda (*consumed*)
                                     (consumer (* count producers)
-                                              counter))
+                                              results))
                                   :arguments (list *consumed*))))))
     (loop for thread in threads do (sb-thread:join-thread thread))
-    nil))
+    (assert (equal (select-results) (nreverse (car results))))))

@@ -1,12 +1,19 @@
-WITH next_message AS (
+WITH timestamp AS (
+    SELECT NOW()
+),
+next_message AS (
     SELECT
-        *,
-        NOW() "timestamp"
+        queue.*,
+        timestamp.now
     FROM
         queue
+    LEFT JOIN
+        timestamp
+    ON
+        true
     WHERE
-        expires_at > NOW() AND
-        visible_at <= NOW()
+        expires_at > timestamp.now AND
+        visible_at <= timestamp.now
     ORDER BY
         created_at
     LIMIT 1
@@ -16,7 +23,7 @@ WITH next_message AS (
 UPDATE
     queue
 SET
-    visible_at = next_message.timestamp + $1 * INTERVAL '1 SECOND',
+    visible_at = next_message.now + $1 * INTERVAL '1 SECOND',
     read_count = next_message.read_count + 1
 FROM
     next_message
