@@ -14,3 +14,24 @@ SELECT
     current_timestamp
     FROM 
         generate_series(1,2000000) series
+
+WITH ranks AS (
+    SELECT
+        *,
+        RANK() OVER (ORDER BY created_at) created_rank,
+        RANK() OVER (ORDER BY visible_at) visibility_rank
+    FROM 
+        queue
+    ORDER BY created_at
+)
+SELECT
+    id,
+    payload,
+    created_at,
+    created_rank,
+    visible_at,
+    visibility_rank
+FROM
+    ranks
+WHERE created_rank <> visibility_rank
+ORDER BY abs(created_rank - visibility_rank) DESC

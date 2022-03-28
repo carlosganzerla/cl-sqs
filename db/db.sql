@@ -16,10 +16,11 @@ CREATE INDEX queue_created_at_idx ON queue USING btree (created_at);
 CREATE OR REPLACE FUNCTION f_dequeue (
     p_visibility_timeout integer
 )
-    RETURNS SETOF point_transaction
+    RETURNS SETOF queue
     LANGUAGE 'plpgsql'
 AS $BODY$
-    next_message_id
+DECLARE
+    next_message_id integer;
 BEGIN
     SELECT
         queue.id
@@ -33,23 +34,64 @@ BEGIN
     ORDER BY
         created_at
     LIMIT 1
-    FOR UPDATE
-)
-UPDATE
-    queue
-SET
-    visible_at = NOW() + $1 * INTERVAL '1 SECOND',
-    read_count = next_message.read_count + 1
-FROM
-    next_message
-WHERE
-    next_message.id = queue.id
-RETURNING 
-    queue.payload,
-    (extract(EPOCH from queue.created_at) * 1000)::bigint "message-timestamp";
+    FOR UPDATE;
 
-
-    RETURN;
+    RETURN QUERY
+        UPDATE
+            queue
+        SET
+            visible_at = NOW() + p_visibility_timeout * INTERVAL '1 SECOND',
+            read_count = read_count + 1
+        WHERE
+            queue.id = next_message_id
+        RETURNING 
+            *;
 END
-$BODY$\
+$BODY$
 
+CREATE OR REPLACE FUNCTION f_enqueue (
+    p_payload text,
+    p_deduplication_id varchar(65535),
+    p_visibility_timeout integer,
+    p_retention_timeout integer
+)
+    RETURNS SETOF queue
+    LANGUAGE 'plpgsql'
+AS $BODY$
+BEGIN
+    PERFORM (
+        SELECT
+            queue.id
+        FROM
+            queue
+        WHERE
+            expires_at > NOW() AND
+            visible_at <= NOW()
+        ORDER BY
+            created_at
+        LIMIT 1
+        FOR UPDATE
+    );
+
+    RETURN QUERY
+        INSERT INTO
+            queue (
+                payload,
+                deduplication_id,
+                visible_at,
+                expires_at
+            )
+            VALUES (
+                p_payload,
+                COALESCE(
+                    p_deduplication_id,
+                    encode(sha256(p_payload::bytea)::bytea, 'hex')),
+                NOW() + p_visibility_timeout * INTERVAL '1 SECOND',
+                NOW() + p_retention_timeout * INTERVAL '1 HOUR'
+            )
+            ON CONFLICT (deduplication_id)
+            DO NOTHING
+            RETURNING 
+                *;
+END
+$BODY$

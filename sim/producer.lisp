@@ -36,9 +36,9 @@
   (let ((*consumed* (make-array (list 1 count)))
         (*produced* (make-array (list 1 count)))
         (results (list nil)))
-    (producer 0 count)
+    (producer 1 count)
     (consumer count results)
-    (print (nreverse (car results)))
+    (assert (equal (select-results) (nreverse (car results))))
     nil))
 
 
@@ -47,8 +47,26 @@
           (cl-sqs::with-database *db*
             (postmodern:query "SELECT payload FROM queue ORDER BY id"
                               :column))))
+(defun multi-threaded-test1 (&key (count 100) (producers 10) (consumers 10))
+  (let* ((*produced* (make-array (list producers count)))
+         (*consumed* (make-array (list producers count)))
+         (results (list nil))
+         (producer-threads (loop for x from 0 to (1- producers) collect
+                                 (sb-thread:make-thread 
+                                   (lambda (id *produced*)
+                                     (producer id count))
+                                   :arguments (list x *produced*))))
+         (consumer-threads (loop for x from 0 to (1- consumers) collect
+                                 (sb-thread:make-thread 
+                                   (lambda (*consumed*)
+                                     (consumer (* count producers)
+                                               results))
+                                   :arguments (list *consumed*)))))
+    (loop for thread in producer-threads do (sb-thread:join-thread thread))
+    (loop for thread in consumer-threads do (sb-thread:join-thread thread))
+    results))
 
-(defun multi-threaded-test (&key (count 100) (producers 10) (consumers 10))
+(defun multi-threaded-test2 (&key (count 100) (producers 10) (consumers 10))
   (let* ((*produced* (make-array (list producers count)))
          (*consumed* (make-array (list producers count)))
          (results (list nil))
@@ -64,4 +82,4 @@
                                               results))
                                   :arguments (list *consumed*))))))
     (loop for thread in threads do (sb-thread:join-thread thread))
-    (assert (equal (select-results) (nreverse (car results))))))
+    results))
