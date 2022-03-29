@@ -1,4 +1,4 @@
-(defsystem "cl-sqs"
+(asdf:defsystem "cl-sqs"
   :version "0.1.0"
   :author "Carlo Sganzerla"
   :license "MIT"
