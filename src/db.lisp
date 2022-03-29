@@ -21,12 +21,12 @@
 (defmethod enqueue ((db database) payload &key deduplication-id
                                   visibility-timeout
                                   retention-timeout)
-  (query db (read-file-lazy #p"db/queries/enqueue2.sql")
+  (query db (read-file-lazy #p"db/queries/enqueue.sql")
          payload deduplication-id visibility-timeout 
          retention-timeout))
 
 (defmethod dequeue ((db database) &key visibility-timeout)
-  (query db (read-file-lazy #p"db/queries/dequeue3.sql")
+  (query db (read-file-lazy #p"db/queries/dequeue2.sql")
          visibility-timeout))
 
 (defmethod change-visibility ((db database) id timeout)
