@@ -1,4 +1,4 @@
-(in-package :cl-sqs)
+(in-package #:cl-sqs)
 
 (defstruct database
   (database "postgres" :type string :read-only t)
@@ -15,23 +15,23 @@
        ,@body)))
 
 (defmacro query (db &rest args)
-  `(with-database ,db (postmodern:query ,@args)))
+  `(with-database ,db (postmodern:query ,@args :plist)))
 
 
 (defmethod enqueue ((db database) payload &key deduplication-id
                                   visibility-timeout
                                   retention-timeout)
-  (query db (read-file-lazy #p"db/queries/enqueue.sql")
+  (query db (read-filememo #p"db/queries/enqueue.sql")
          payload deduplication-id visibility-timeout 
-         retention-timeout :single))
+         retention-timeout))
 
 (defmethod dequeue ((db database) &key visibility-timeout)
-  (query db (read-file-lazy #p"db/queries/dequeue.sql")
-         visibility-timeout :single))
+  (query db (read-filememo #p"db/queries/dequeue.sql")
+         visibility-timeout))
 
 (defmethod change-visibility ((db database) id timeout)
-  (query db (read-file-lazy #p"db/queries/change_visibility.sql")
+  (query db (read-filememo #p"db/queries/change_visibility.sql")
          id timeout))
 
 (defmethod delete-message ((db database) id)
-  (query db (read-file-lazy #p"db/queries/delete.sql") id))
+  (query db (read-filememo #p"db/queries/delete.sql") id))

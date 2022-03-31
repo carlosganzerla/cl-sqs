@@ -7,7 +7,7 @@
   (intern (string-upcase str) :keyword))
 
 (let ((read-files (make-hash-table)))
-  (defun read-file-lazy (filename)
+  (defun read-file-memo (filename)
     (if (gethash filename read-files)
         (gethash filename read-files)
         (with-open-file (stream filename)
@@ -35,3 +35,5 @@
       (car x)
       x))
 
+(defun try-get-env (name default)
+  (or (sb-ext:posix-getenv name) default))

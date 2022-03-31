@@ -4,11 +4,12 @@ WITH next_message AS (
     FROM
         queue
     WHERE
-        visible_at <= NOW()
+        expires_at > now() AND
+        visible_at <= now()
     ORDER BY
-        created_at
+        visible_at
     LIMIT 1
-    FOR SHARE
+    FOR UPDATE
 )
 UPDATE
     queue
@@ -18,8 +19,7 @@ SET
 FROM
     next_message
 WHERE
-    queue.id = next_message.id
-RETURNING json_build_object(
-    'id', queue.id,
-    'payload', queue.payload
-);
+    next_message.id = queue.id
+RETURNING 
+    queue.payload,
+    (extract(EPOCH from queue.visible_at) * 1000000) "message-timestamp";
