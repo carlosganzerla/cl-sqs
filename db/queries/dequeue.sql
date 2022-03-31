@@ -1,56 +1,15 @@
-WITH RECURSIVE messages AS (
-    SELECT 
-        *,
-        pg_try_advisory_xact_lock(next_message.id) has_lock
-    FROM (
-        SELECT
-            *
-        FROM
-            queue
-        WHERE
-            visible_at <= NOW() AND
-            expires_at > NOW()
-        ORDER BY
-            created_at
-        LIMIT 1
-    ) next_message
-    UNION ALL
+WITH next_message AS (
     SELECT
-        rest.*,
-        pg_try_advisory_xact_lock(rest.id) has_lock
-    FROM (
-        SELECT
-            queue.*
-        FROM
-            messages
-        LEFT JOIN LATERAL (
-            SELECT
-                *
-            FROM
-                queue
-            WHERE
-                visible_at <= NOW() AND
-                expires_at > NOW() AND
-                created_at > messages.created_at
-            ORDER BY
-                created_at
-            LIMIT 1
-        ) queue
-        ON
-            true
-        WHERE
-            queue.id IS NOT NULL
-        LIMIT 1
-    ) rest
-),
-next_message AS (
-    SELECT 
-        * 
-    FROM 
-        messages 
-    WHERE 
-        has_lock
+        *
+    FROM
+        queue
+    WHERE
+        expires_at > now() AND
+        visible_at <= now()
+    ORDER BY
+        visible_at
     LIMIT 1
+    FOR UPDATE
 )
 UPDATE
     queue
@@ -60,7 +19,7 @@ SET
 FROM
     next_message
 WHERE
-    queue.id = next_message.id
+    next_message.id = queue.id
 RETURNING 
     queue.payload,
-    (extract(EPOCH from queue.created_at) * 1000)::bigint "message-timestamp";
+    (extract(EPOCH from queue.visible_at) * 1000000) "message-timestamp";

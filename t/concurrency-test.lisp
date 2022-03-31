@@ -43,7 +43,12 @@
        queue
        ORDER BY visible_at" :plists)))
 
+(defun clean-queue ()
+  (cl-sqs::with-database *db*
+    (postmodern:query "DELETE FROM queue")))
+
 (defun simple-sequential-test (&optional (count 10))
+  (clean-queue)
   (let ((*consumed* (list nil)))
     (producer 0 count)
     (consumer count)
@@ -53,6 +58,7 @@
 
 
 (defun multi-threaded-test1 (&key (count 100) (producers 10) (consumers 10))
+  (clean-queue)
   (let* ((*consumed* (list nil))
          (producer-threads (loop for x from 0 to (1- producers) collect
                                  (sb-thread:make-thread 
@@ -69,6 +75,7 @@
     (assert (equal (select-results) (consumed-results)))))
 
 (defun multi-threaded-test2 (&key (count 100) (producers 10) (consumers 10))
+  (clean-queue)
   (let* ((*consumed* (list nil))
          (threads (append (loop for x from 0 to (1- producers) collect
                                  (sb-thread:make-thread 

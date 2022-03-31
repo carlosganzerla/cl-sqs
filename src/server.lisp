@@ -1,8 +1,14 @@
 (in-package #:cl-sqs)
 
 (defvar *request*)
-(defparameter *db* (make-database)) 
- 
+
+(defparameter *db* (make-database
+                     :database (try-get-env "DB_NAME" "postgres")
+                     :user (try-get-env "DB_USER" "postgres")
+                     :password (try-get-env "DB_PASSWORD" "postgres")
+                     :host (try-get-env "DB_HOST" "localhost")
+                     :port (parse-integer (try-get-env "DB_PORT" "5432")))) 
+
 (defconstantsafe +path+ "/queue")
 (defconstantsafe +max-payload-size+ 65535)
 (defconstantsafe +content-type+ "text/plain")
@@ -70,10 +76,10 @@
 (defmacro with-response (params plist &body body)
   (let ((result (gensym)))
     `(let ((,result ,plist))
-      (if ,result
-          (destructuring-bind (&key ,@params) ,result
-            ,@body)
-          (response 204)))))
+       (if ,result
+           (destructuring-bind (&key ,@params) ,result
+             ,@body)
+           (response 204)))))
 
 (defun get-handler (params)
   (dequeue-schema-bind params
