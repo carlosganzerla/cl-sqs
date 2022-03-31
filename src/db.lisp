@@ -21,17 +21,17 @@
 (defmethod enqueue ((db database) payload &key deduplication-id
                                   visibility-timeout
                                   retention-timeout)
-  (query db (read-filememo #p"db/queries/enqueue.sql")
+  (query db (read-file-memo #p"db/queries/enqueue.sql")
          payload deduplication-id visibility-timeout 
          retention-timeout))
 
 (defmethod dequeue ((db database) &key visibility-timeout)
-  (query db (read-filememo #p"db/queries/dequeue.sql")
+  (query db (read-file-memo #p"db/queries/dequeue.sql")
          visibility-timeout))
 
 (defmethod change-visibility ((db database) id timeout)
-  (query db (read-filememo #p"db/queries/change_visibility.sql")
+  (query db (read-file-memo #p"db/queries/change_visibility.sql")
          id timeout))
 
 (defmethod delete-message ((db database) id)
-  (query db (read-filememo #p"db/queries/delete.sql") id))
+  (query db (read-file-memo #p"db/queries/delete.sql") id))

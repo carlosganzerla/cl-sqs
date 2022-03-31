@@ -27,3 +27,11 @@
     (time (setf result (consume-messages msgs)))
     (check-list (sort result #'string<))))
 
+(defparameter *curl*
+  "curl -o /dev/null -s -w 'Total: %{time_total}s\\n' \\
+   http://localhost:5000/queue")
+
+(let ((str (make-string-output-stream)))
+  (uiop:launch-program *curl* :output *standard-input*)
+  (sleep 3)
+  (print (get-output-stream-string str)))
