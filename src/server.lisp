@@ -102,6 +102,10 @@
                                :message-md5 message-md5)))))
 
 (defun request-handler (*request*)
+  (print *request*)
+  (with-slots (last-activity) (getf *request* :clack.io)
+    (print last-activity))
+  (return-from request-handler (response 200 "hello"))
   (with-request params
     (case (getf *request* :request-method)
       (:GET (get-handler params))

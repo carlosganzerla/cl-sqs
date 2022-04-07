@@ -1,18 +1,46 @@
+WITH uuid AS (
+    SELECT uuid_generate_v4() value
+),
+incoming_group AS (
+    INSERT INTO
+        message_group (
+            id,
+            front_message_id
+        )
+    SELECT
+        $1,
+        value
+    FROM
+        uuid
+    ON CONFLICT (id) DO UPDATE SET
+        message_count = EXCLUDED.message_count + 1,
+        updated_at = NOW()
+    RETURNING *
+)
 INSERT INTO
-    queue (
+    message (
+        id,
+        message_group_id,
         payload,
         deduplication_id,
-        visible_at,
-        expires_at
+        created_at,
+        visible_at
     )
-    VALUES (
-        $1::text,
-        COALESCE($2, encode(sha256($1::bytea)::bytea, 'hex')),
-        NOW() + $3 * INTERVAL '1 SECOND',
-        NOW() + $4 * INTERVAL '1 HOUR'
-    )
-ON CONFLICT (deduplication_id)
-DO NOTHING
+SELECT
+    uuid.value,
+    incoming_group.id,
+    $2::text,
+    COALESCE(null, encode(sha256($2::bytea)::bytea, 'hex')),
+    NOW(),
+    NOW()
+FROM
+    incoming_group
+INNER JOIN
+    uuid
+ON
+    true
+ON CONFLICT (deduplication_id, message_group_id) DO NOTHING
 RETURNING 
-    md5(queue.payload) "message-md5",
-    (extract(EPOCH from queue.visible_at) * 1000000) "message-timestamp";
+    message.id "message-id",
+    md5(message.payload) "message-md5",
+    (extract(EPOCH from message.created_at) * 1000000) "message-timestamp";
