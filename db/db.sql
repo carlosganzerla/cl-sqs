@@ -2,7 +2,7 @@ CREATE EXTENSION IF NOT EXISTS pgplsql;
 
 CREATE TABLE message_group (
     id varchar(128) NOT NULL PRIMARY KEY,
-    front_message_id uuid NOT NULL,
+    front_message_id uuid NOT NULL UNIQUE,
     created_at timestamptz NOT NULL DEFAULT NOW(),
     updated_at timestamptz,
     message_count integer NOT NULL DEFAULT 1
@@ -16,18 +16,9 @@ CREATE TABLE message (
     visible_at timestamptz NOT NULL, 
     created_at timestamptz NOT NULL DEFAULT NOW(),
     read_count integer NOT NULL DEFAULT 0,
-    UNIQUE (group_id, deduplication_id)
+    receipt_id uuid,
+    UNIQUE (message_group_id, deduplication_id)
 );
 
-SELECT
-    *
-FROM
-    message_group
-INNER JOIN
-   queue 
-ON
-    queue.id = message_group.front_id
-WHERE
-    queue.visible_at >= NOW()
-ORDER BY
-    queue.created_at
+CREATE UNIQUE INDEX message_receipt_id_key ON message (receipt_id)
+    WHERE message.receipt_id IS NOT NULL;

@@ -1,54 +1,33 @@
-WITH uuid AS (
-    SELECT uuid_generate_v4() value
-),
-new_group AS (
-    INSERT INTO
-        message_group (
-            id,
-            front_message_id
-        )
+WITH next_message AS (
     SELECT
-        $1,
-        value
+        message.id,
+        message.message_group_id
     FROM
-        uuid
-    ON CONFLICT (id) DO NOTHING
-    RETURNING *
-),
-incoming_group AS (
-    SELECT
-        id
-    FROM
-        new_group
-    UNION
-    SELECT
-        id
-    FROM
-        message_group
+        message
+    INNER JOIN
+        message_group 
+    ON
+        message.id = message_group.front_message_id AND
+        message.message_group_id = message_group.id
     WHERE
-        id = $1
+        message.visible_at <= NOW()
+    ORDER BY
+        message.created_at
+    LIMIT 1
+    FOR UPDATE
 )
-INSERT INTO
-    message (
-        id,
-        payload,
-        message_group_id,
-        deduplication_id,
-        visible_at
-    )
-SELECT
-    uuid.value,
-    $2,
-    incoming_group.id,
-    COALESCE($3, encode(sha256($2::bytea)::bytea, 'hex')),
-    NOW()
+UPDATE
+    message
+SET
+    visible_at = NOW() + $1 * INTERVAL '1 SECOND',
+    receipt_id = uuid_generate_v5(
+        next_message.id,
+        concat(NOW()::text, message.message_group_id))
 FROM
-    incoming_group
-INNER JOIN
-    uuid
-ON
-    true
-ON CONFLICT (deduplication_id, message_group_id) DO NOTHING
-RETURNING 
-    md5(message.payload) "message-md5",
-    (extract(EPOCH from message.created_at) * 1000000) "message-timestamp";
+    next_message
+WHERE
+    next_message.id = message.id
+RETURNING
+    message.id "message-id",
+    message.payload,
+    (extract(EPOCH from message.created_at) * 1000001) "message-timestamp";

@@ -1,5 +1,5 @@
 WITH uuid AS (
-    SELECT uuid_generate_v4() value
+    SELECT gen_random_uuid() value
 ),
 incoming_group AS (
     INSERT INTO
