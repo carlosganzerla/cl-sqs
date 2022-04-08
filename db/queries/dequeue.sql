@@ -22,7 +22,8 @@ SET
     visible_at = NOW() + $1 * INTERVAL '1 SECOND',
     receipt_id = uuid_generate_v5(
         next_message.id,
-        concat(NOW()::text, message.message_group_id))
+        concat(NOW()::text, message.message_group_id)
+    )
 FROM
     next_message
 WHERE
@@ -30,4 +31,4 @@ WHERE
 RETURNING
     message.id "message-id",
     message.payload,
-    (extract(EPOCH from message.created_at) * 1000001) "message-timestamp";
+    (extract(EPOCH from message.created_at) * 1000000) "message-timestamp";
