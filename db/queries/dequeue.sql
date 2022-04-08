@@ -1,18 +1,13 @@
 WITH next_message AS (
     SELECT
-        message.id,
-        message.message_group_id
+        id
     FROM
         message
-    INNER JOIN
-        message_group 
-    ON
-        message.id = message_group.front_message_id AND
-        message.message_group_id = message_group.id
     WHERE
-        message.visible_at <= NOW()
+        group_head = true AND
+        visible_at <= NOW()
     ORDER BY
-        message.created_at
+        created_at
     LIMIT 1
     FOR UPDATE
 )
