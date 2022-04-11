@@ -10,15 +10,15 @@ INSERT INTO
     )
 VALUES (
     gen_random_uuid(),
-    $1,
-    $2,
-    COALESCE($3, encode(sha256($2::bytea)::bytea, 'hex')),
+    $1::text,
+    $2::text,
+    COALESCE($3, encode(sha256($2::text::bytea)::bytea, 'hex')),
     NOW(),
     NOW(),
-    NOT EXISTS (SELECT group_id FROM message WHERE group_id = $2)
+    NOT EXISTS (SELECT group_id FROM message WHERE group_id = $1::text)
 
 )
-ON CONFLICT (deduplication_id, group_id) DO NOTHING
+ON CONFLICT (group_id, deduplication_id) DO NOTHING
 RETURNING 
     message.id "message-id",
     md5(message.payload) "message-md5",

@@ -2,13 +2,13 @@ WITH previous_message AS (
     DELETE FROM
         message
     WHERE
-        receipt_id = '6a3f3d49-dc19-483b-b1fa-a3c0d1abd7bf' AND
+        receipt_id = $1 AND
         group_head = true
-    RETURNING group_id
+    RETURNING id, group_id
 ),
 next_message AS (
     SELECT 
-        *
+        message.id
     FROM
         message
     INNER JOIN
@@ -20,13 +20,23 @@ next_message AS (
     ORDER BY
         created_at
     LIMIT 1
+),
+updated_message AS (
+    UPDATE
+        message
+    SET
+        group_head = true
+    FROM
+        next_message
+    WHERE
+        message.id = next_message.id
+    RETURNING *
 )
-UPDATE
-    message
-SET
-    group_head = true
+SELECT
+    previous_message.id "message-id"
 FROM
-    next_message
-WHERE
-    message.id = next_message.id
-RETURNING *;
+    previous_message
+LEFT JOIN
+    updated_message
+ON
+    true;

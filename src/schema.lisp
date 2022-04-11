@@ -26,13 +26,20 @@
             (,',name ,proplist)
             ,@body)))))
 
+(defun varchar128-p (str)
+  (and (typep str) (>= 128 (length str))))
+
+(deftype varchar128 ()
+  `(satisfies varchar128-p))
+
 (defschema dequeue-schema
   ((visibility-timeout 60) :target (integer 0 86400)
                            :converter #'parse-integer))
 
+;; TODO: Validate UUID
+(defschema delete-schema
+  ((visibility-timeout 60) :target (integer 0 86400)))
+
 (defschema enqueue-schema
-  ((visibility-timeout 0) :target (integer 0 86400)
-                           :converter #'parse-integer)
-  ((retention-timeout 24) :target (integer 1 336)
-                          :converter #'parse-integer)
-  ((deduplication-id :NULL) :target (or (eql :NULL) string)))
+  (message-group-id :target varchar128)
+  ((deduplication-id :NULL) :target (or (eql :NULL) varchar128)))
