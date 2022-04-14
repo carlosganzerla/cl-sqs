@@ -7,31 +7,39 @@
   (host "localhost" :type string :read-only t)
   (port 5432 :type integer :read-only t))
 
-(defmacro with-database (db &body body)
-  `(with-slots (database host port user password pooled-p) ,db
+(defmacro with-database (&body body)
+  `(with-slots (database host port user password pooled-p) *db*
      (postmodern:with-connection  (list database user password host
                                         :port port
                                         :pooled-p t)
        ,@body)))
 
 (defmacro query (db &rest args)
-  `(with-database ,db (postmodern:query ,@args :plist)))
+  `(with-database 
+     (let ((results (postmodern:query ,@args :array-hash))
+           (headers))
+       (if (> (length results) 0)
+           (progn
+             (maphash (lambda (k v)
+                        (unless (string= k "payload")
+                          (push (str-to-kw k) headers)
+                          (push v headers))) 
+                      (aref results 0))
+             (values (or (gethash "payload" (aref results 0)) "")
+                     (nreverse headers)))
+           (values nil nil)))))
 
 
-(defmethod enqueue ((db database) payload &key deduplication-id
-                                  visibility-timeout
-                                  retention-timeout)
-  (query db (read-filememo #p"db/queries/enqueue.sql")
-         payload deduplication-id visibility-timeout 
-         retention-timeout))
+(defun enqueue (group-id payload deduplication-id)
+  (query *db* (read-file-memo #p"db/queries/enqueue.sql")
+         group-id payload deduplication-id))
 
-(defmethod dequeue ((db database) &key visibility-timeout)
-  (query db (read-filememo #p"db/queries/dequeue.sql")
-         visibility-timeout))
+(defun dequeue (visibility-timeout)
+  (query *db* (read-file-memo #p"db/queries/dequeue.sql") visibility-timeout))
 
-(defmethod change-visibility ((db database) id timeout)
-  (query db (read-filememo #p"db/queries/change_visibility.sql")
-         id timeout))
+(defun change-visibility (receipt-id timeout)
+  (query *db* (read-file-memo #p"db/queries/change_visibility.sql") id timeout))
 
-(defmethod delete-message ((db database) id)
-  (query db (read-filememo #p"db/queries/delete.sql") id))
+(defun delete-message (message-receipt-id)
+  (query *db* (read-file-memo #p"db/queries/delete.sql")
+         message-receipt-id))

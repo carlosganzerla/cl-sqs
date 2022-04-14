@@ -1,18 +1,25 @@
 INSERT INTO
-    queue (
+    message (
+        id,
+        group_id,
         payload,
         deduplication_id,
+        created_at,
         visible_at,
-        expires_at
+        group_head
     )
-    VALUES (
-        $1::text,
-        COALESCE($2, encode(sha256($1::bytea)::bytea, 'hex')),
-        NOW() + $3 * INTERVAL '1 SECOND',
-        NOW() + $4 * INTERVAL '1 HOUR'
-    )
-ON CONFLICT (deduplication_id)
-DO NOTHING
+VALUES (
+    gen_random_uuid(),
+    $1::text,
+    $2::text,
+    COALESCE($3, encode(sha256($2::text::bytea)::bytea, 'hex')),
+    NOW(),
+    NOW(),
+    NOT EXISTS (SELECT group_id FROM message WHERE group_id = $1::text)
+
+)
+ON CONFLICT (group_id, deduplication_id) DO NOTHING
 RETURNING 
-    md5(queue.payload) "message-md5",
-    (extract(EPOCH from queue.visible_at) * 1000000) "message-timestamp";
+    message.id "message-id",
+    md5(message.payload) "message-md5",
+    (extract(EPOCH from message.created_at) * 1000000) "message-timestamp";

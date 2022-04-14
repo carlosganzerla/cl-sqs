@@ -1,25 +1,31 @@
 WITH next_message AS (
     SELECT
-        *
+        id
     FROM
-        queue
+        message
     WHERE
-        expires_at > now() AND
-        visible_at <= now()
+        group_head = true AND
+        visible_at <= NOW()
     ORDER BY
-        visible_at
+        created_at
     LIMIT 1
     FOR UPDATE
 )
 UPDATE
-    queue
+    message
 SET
     visible_at = NOW() + $1 * INTERVAL '1 SECOND',
-    read_count = next_message.read_count + 1
+    read_count = read_count + 1,
+    receipt_id = uuid_generate_v5(
+        next_message.id,
+        concat(NOW()::text, message.group_id)
+    )
 FROM
     next_message
 WHERE
-    next_message.id = queue.id
-RETURNING 
-    queue.payload,
-    (extract(EPOCH from queue.visible_at) * 1000000) "message-timestamp";
+    next_message.id = message.id
+RETURNING
+    message.payload,
+    message.receipt_id "message-receipt-id",
+    message.id "message-id",
+    (extract(EPOCH from message.created_at) * 1000000) "message-timestamp";
