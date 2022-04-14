@@ -2,8 +2,7 @@
 
 (defmacro defschema (name &body fields)
   (let* ((macro-name (intern (concatenate 'string (string name) "-BIND")))
-         (field-params (mapcar #'car fields))
-         (field-vars (mapcar #'car-if-list field-params)))
+         (field-params (mapcar #'car fields)))
     `(progn 
        (defun ,name (proplist)
          (destructuring-bind (&key ,@field-params) proplist
@@ -21,16 +20,18 @@
                                   (tc (funcall ,converter (tc ,name ',from))
                                       ',target))))))
                  fields))))
-       (defmacro ,macro-name (proplist &body body)
-         `(destructuring-bind (&key ,@',field-vars) 
-            (,',name ,proplist)
+       (defmacro ,macro-name (proplist vars &body body)
+         `(destructuring-bind (&key ,@vars) (,',name ,proplist)
             ,@body)))))
 
 (defun varchar128-p (str)
-  (and (typep str) (>= 128 (length str))))
+  (and (typep str 'string) (>= 128 (length str))))
 
 (deftype varchar128 ()
   `(satisfies varchar128-p))
+
+(deftype uuid ()
+  `(satisfies validate-uuid))
 
 (defschema dequeue-schema
   ((visibility-timeout 60) :target (integer 0 86400)
@@ -38,7 +39,7 @@
 
 ;; TODO: Validate UUID
 (defschema delete-schema
-  ((visibility-timeout 60) :target (integer 0 86400)))
+  (message-receipt-id :target uuid))
 
 (defschema enqueue-schema
   (message-group-id :target varchar128)

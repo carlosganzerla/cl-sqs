@@ -1,6 +1,7 @@
 (in-package #:cl-sqs)
 
 (defvar *request*)
+(defparameter *api-key* (sb-ext:posix-getenv "API_KEY"))
 
 (defparameter *db* (make-database
                      :database (try-get-env "DB_NAME" "postgres")
@@ -13,9 +14,14 @@
 (defconstantsafe +max-payload-size+ 65535)
 (defconstantsafe +content-type+ "text/plain")
 
-(defun read-payload (body content-length)
-  (let ((octets (make-array content-length)))
-    (when content-length (read-sequence octets body))
+(defun get-header (header)
+  (gethash header (getf *request* :headers)))
+
+(defun read-payload ()
+  (let* ((content-length (min +max-payload-size+
+                             (getf *request* :content-length)))
+        (octets (make-array content-length)))
+    (read-sequence octets (getf *request* :raw-body))
     (flexi-streams:octets-to-string octets)))
 
 (defun url-decode (url)
@@ -62,60 +68,50 @@
 (defun response (code &optional (content "") &rest headers)
   `(,code (:content-type ,+content-type+ ,@headers) ,(list content)))
 
-(defmacro with-request (params &body body)
-  `(handler-case
-     (let ((,params (parse-qs (getf *request* :query-string)))) 
-       (if (equal +path+ (getf *request* :path-info))
-           (progn ,@body)
-           (response 404)))
-     #+sbcl
-     (sb-kernel::defmacro-lambda-list-bind-error () (response 422))
-     (type-error () (response 422))
-     (parse-error () (response 422))))
+(defmacro with-request ((params) &body body)
+  `(block nil
+          (handler-case
+            (let ((,params (parse-qs (getf *request* :query-string)))) 
+              (unless (equal +path+ (getf *request* :path-info))
+                (return (response 404)))
+              (unless (or (not *api-key*)
+                          (string= *api-key* (get-header "api-key")))
+                (return (response 401)))
+              (progn ,@body))
+            #+sbcl
+            (sb-kernel::defmacro-lambda-list-bind-error () (response 422))
+            (type-error () (response 422))
+            (parse-error () (response 422)))))
 
-(defmacro with-response (params plist &body body)
-  (let ((result (gensym)))
-    `(let ((,result ,plist))
+(defmacro with-response (form)
+  (let ((result (gensym))
+        (headers (gensym)))
+    `(multiple-value-bind (,result ,headers) ,form
        (if ,result
-           (destructuring-bind (&key ,@params) ,result
-             ,@body)
+           (apply #'response 200 ,result ,headers)
            (response 204)))))
 
 (defun get-handler (params)
-  (dequeue-schema-bind params
-    (with-response (payload message-timestamp message-id message-receipt-id)
-                   (dequeue *db* :visibility-timeout visibility-timeout)
-                   (response 200 payload
-                             :message-timestamp message-timestamp
-                             
-                             ))))
+  (dequeue-schema-bind params (visibility-timeout)
+    (with-response (dequeue visibility-timeout))))
 
 (defun post-handler (params)
-  (let ((payload (read-payload (getf *request* :raw-body)
-                               (min +max-payload-size+
-                                    (getf *request* :content-length)))))
-    (enqueue-schema-bind params
-      (with-response (message-id message-md5 message-timestamp)
-                     (enqueue *db* payload
-                              :deduplication-id deduplication-id
-                              :message-group-id 
-                              :visibility-timeout visibility-timeout)
-                     (response 201 ""
-                               :message-id message-id
-                               :message-timestamp message-timestamp
-                               :message-md5 message-md5)))))
+  (let ((payload (read-payload)))
+    (enqueue-schema-bind params (deduplication-id message-group-id)
+      (with-response
+        (enqueue message-group-id payload deduplication-id)))))
+
+(defun delete-handler (params)
+  (delete-schema-bind params (message-receipt-id)
+    (with-response (delete-message message-receipt-id))))
 
 (defun request-handler (*request*)
-  (print *request*)
-  (with-slots (last-activity) (getf *request* :clack.io)
-    (print last-activity))
-  (return-from request-handler (response 200 "hello"))
-  (with-request params
+  (with-request (params)
     (case (getf *request* :request-method)
       (:GET (get-handler params))
       (:POST (post-handler params))
+      (:DELETE (delete-handler params))
       (t (response 405)))))
 
 (defun start ()
-  (woo:run #'request-handler :address "0.0.0.0"
-           :worker-num 4))
+  (woo:run #'request-handler :address "0.0.0.0"))
