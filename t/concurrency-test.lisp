@@ -9,7 +9,7 @@
   (dotimes (x count)
     (let ((content (list :message x :producer id)))
       (multiple-value-bind (resp code)
-        (dexador:post "http://localhost:5000/queue"
+        (dexador:post "http://localhost:5000/queue?message-group-id=x"
                       :content (write-to-string content)
                       :use-connection-pool nil)
         (when (/= code 201)
@@ -23,10 +23,12 @@
         (dexador:get "http://localhost:5000/queue?visibility-timeout=86400"
                      :use-connection-pool nil)
         (when (= 200 code)
+          (dexador:delete
+            (format nil "http://localhost:5000/queue?message-receipt-id=~A"
+                    (gethash "message-receipt-id")))
           (sb-ext:atomic-push
-            (list :payload resp
-                  :timestamp (parse-integer (gethash "message-timestamp"
-                                                     headers)))
+            (list :payload resp :timestamp
+                  (parse-integer (gethash "message-timestamp" headers)))
             (car *consumed*))))))
 
 (defun consumed-results ()
@@ -41,7 +43,7 @@
        (extract(EPOCH from queue.visible_at) * 1000000) timestamp
        FROM
        queue
-       ORDER BY visible_at" :plists)))
+       ORDER BY created_at" :plists)))
 
 (defun clean-queue ()
   (cl-sqs::with-database *db*
