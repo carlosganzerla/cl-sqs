@@ -2,6 +2,10 @@
 (ql:quickload :postmodern)
 (ql:quickload :cl-sqs)
 
+(defparameter *curl*
+  "curl --data-raw /dev/null -s -w 'Total: %{time_total}s\\n' \\
+   http://localhost:5000/queue?message-group-id=~A")
+
 (defun insert-bulk (count)
   (cl-sqs::with-database *db*
     (postmodern:query
@@ -20,18 +24,16 @@
       ((not (cdr xs)))
       (assert (string/= (car xs) (cadr xs)))))
 
-(defun benchmark (&key (rows 1000000) (msgs 500))
+(defun database-benchmark (&key (rows 1000000) (msgs 500))
   (clean-queue)
   (insert-bulk rows)
   (let ((result nil))
     (time (setf result (consume-messages msgs)))
     (check-list (sort result #'string<))))
 
-(defparameter *curl*
-  "curl -o /dev/null -s -w 'Total: %{time_total}s\\n' \\
-   http://localhost:5000/queue")
+(defun concurrency-benchmark (&optional (count 1000))
+  (dotimes (_ count)
+    (uiop:launch-program (format nil *curl* (random count))
+                         :output *standard-output*)))
 
-(let ((str (make-string-output-stream)))
-  (uiop:launch-program *curl* :output *standard-input*)
-  (sleep 3)
-  (print (get-output-stream-string str)))
+(concurrency-benchmark)
