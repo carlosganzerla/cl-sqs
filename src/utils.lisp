@@ -58,3 +58,12 @@
       (if result
         (values-list result)
         (values t nil nil)))))
+
+(defun get-timestamp-string ()
+  (multiple-value-bind (sec min hour day month year _ __ tz) (get-decoded-time)
+    (declare (ignore _ __))
+    (format nil "~d-~2,'0d-~2,'0d ~2,'0d:~2,'0d:~2,'0d~A~2,'0d:00"
+            year month day hour min sec (if (>= 0 tz) '+ '-) tz)))
+
+(defun log-data (&rest args)
+  (format t "[~A] ~A~%" (get-timestamp-string) (apply #'format nil args)))

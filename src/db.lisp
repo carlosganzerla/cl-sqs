@@ -38,7 +38,8 @@
   (query *db* (read-file-memo #p"db/queries/dequeue.sql") visibility-timeout))
 
 (defun change-visibility (receipt-id timeout)
-  (query *db* (read-file-memo #p"db/queries/change_visibility.sql") id timeout))
+  (query *db* (read-file-memo #p"db/queries/change_visibility.sql") 
+         receipt-id timeout))
 
 (defun delete-message (message-receipt-id)
   (query *db* (read-file-memo #p"db/queries/delete.sql")

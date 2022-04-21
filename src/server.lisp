@@ -66,6 +66,10 @@
 
 
 (defun response (code &optional (content "") &rest headers)
+  (destructuring-bind (&key request-method content-length request-uri
+                            &allow-other-keys) *request*
+    (log-data "~A - ~A ~A (~A bytes)" code request-method request-uri
+              (or content-length 0) ))
   `(,code (:content-type ,+content-type+ ,@headers) ,(list content)))
 
 (defmacro with-request ((params) &body body)
@@ -81,7 +85,10 @@
             #+sbcl
             (sb-kernel::defmacro-lambda-list-bind-error () (response 422))
             (type-error () (response 422))
-            (parse-error () (response 422)))))
+            (parse-error () (response 422))
+            (error (e) ()
+                   (log-data "ERROR: ~A" e)
+                   (response 500)))))
 
 (defmacro with-response (form)
   (let ((result (gensym))
@@ -101,6 +108,10 @@
       (with-response
         (enqueue message-group-id payload deduplication-id)))))
 
+(defun patch-handler (params)
+  (change-visibility-schema-bind params (message-receipt-id visibility-timeout)
+    (with-response (change-visibility message-receipt-id visibility-timeout))))
+
 (defun delete-handler (params)
   (delete-schema-bind params (message-receipt-id)
     (with-response (delete-message message-receipt-id))))
@@ -110,6 +121,7 @@
     (case (getf *request* :request-method)
       (:GET (get-handler params))
       (:POST (post-handler params))
+      (:PATCH (patch-handler params))
       (:DELETE (delete-handler params))
       (t (response 405)))))
 
