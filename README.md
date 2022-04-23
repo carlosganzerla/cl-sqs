@@ -24,18 +24,6 @@ message formats. Additional message data is sent on the response headers.
 
 ## API
 
-The API consists on 4 HTTP methods on the same path. All parameters are sent as
-URL params, except for the message payload itself, similarly to SQS endpoints
-
-### Enqueue (`POST`)
-
-**Parameters**:
-- `message-group-id`:
-- `deduplication-id`
-
-```
-```
-
 ## Security
 
 ### Database
