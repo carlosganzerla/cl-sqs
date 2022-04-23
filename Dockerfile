@@ -1,7 +1,7 @@
 FROM archlinux:latest
 
 RUN pacman -Syu --noconfirm
-RUN pacman -S --noconfirm sbcl rlwrap libev gcc
+RUN pacman -S --noconfirm sbcl libev gcc
 RUN curl -O https://beta.quicklisp.org/quicklisp.lisp
 RUN sbcl --load quicklisp.lisp \
     --eval '(quicklisp-quickstart:install)' \
@@ -12,6 +12,7 @@ RUN sbcl --load quicklisp.lisp \
 COPY . /cl-sqs
 WORKDIR /cl-sqs
 
+# This is to avoid re-installing packages each run.
 RUN sbcl --load cl-sqs.asd \
     --eval '(ql:quickload :cl-sqs)'
 

@@ -4,26 +4,37 @@ services:
     image: "postgres"
     restart: always
     ports:
-        - 5432:5432
+      - 5432:5432
     environment:
-        POSTGRES_PASSWORD: postgres
-        POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
     volumes:
-        - postgres:/var/lib/postgresql/data
+      - postgres:/var/lib/postgresql/data
   pgadmin:
     image: "dpage/pgadmin4"
     environment:
-            PGADMIN_DEFAULT_EMAIL: pg@admin.com
-            PGADMIN_DEFAULT_PASSWORD: password
-            PGADMIN_LISTEN_PORT: 80
+        PGADMIN_DEFAULT_EMAIL: pg@admin.com
+        PGADMIN_DEFAULT_PASSWORD: password
+        PGADMIN_LISTEN_PORT: 80
     ports:
-        - 5050:80
+      - 5050:80
     volumes:
-        - pgadmin:/var/lib/pgadmin
+      - pgadmin:/var/lib/pgadmin
     depends_on:
-        - postgres
-
+      - postgres
+  cl-sqs:
+    build: .
+    environment:
+      DB_HOST: postgres
+      API_KEY: test_key
+    ports:
+      - 5000:80
+    volumes:
+      - .:/cl-sqs
+    depends_on:
+      - postgres
 
 volumes:
-    postgres:
-    pgadmin:
+  postgres:
+  pgadmin:
+  cl-sqs:

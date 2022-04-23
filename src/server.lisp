@@ -126,4 +126,8 @@
       (t (response 405)))))
 
 (defun start ()
-  (woo:run #'request-handler :address "0.0.0.0"))
+  (apply #'woo:run #'request-handler 
+         (let ((args (sb-ext:posix-getenv "WOO_ARGS")))
+           (if args
+               (read-from-string args)
+               (list :address "0.0.0.0" :port 80 :debug nil :worker-num 4)))))

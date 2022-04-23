@@ -1,39 +1,20 @@
-(ql:quickload :dexador)
-(ql:quickload :postmodern)
-(ql:quickload :cl-sqs)
-
-(defparameter *curl*
-  "curl --data-raw /dev/null -s -w 'Total: %{time_total}s\\n' \\
-   http://localhost:5000/queue?message-group-id=~A")
+(in-package #:cl-sqs-test)
 
 (defun insert-bulk (count)
   (cl-sqs::with-database *db*
-    (postmodern:query
-      (cl-sqs::read-file-memo #p"db/queries/benchmark.sql") count)))
+    (postmodern:execute
+      (cl-sqs::read-file-memo #p"db/queries/benchmark.sql")
+      (max 1 (/ count 100)) count)))
 
-(defun consume-messages (count)
-  (let ((result nil))
-    (dotimes (x count)
-      (push
-        (dexador:get "http://localhost:5000/queue?visibility-timeout=86400")
-        result)
-      result)))
 
-(defun check-list (list)
-  (do ((xs list (cdr xs)))
-      ((not (cdr xs)))
-      (assert (string/= (car xs) (cadr xs)))))
-
-(defun database-benchmark (&key (rows 1000000) (msgs 500))
+(defun database-benchmark (&key (rows 1000000))
+  "Benchmarks database query (speed of enqueueing, dequeuing and deleting after
+   a large number of messages are present)"
   (clean-queue)
   (insert-bulk rows)
-  (let ((result nil))
-    (time (setf result (consume-messages msgs)))
-    (check-list (sort result #'string<))))
-
-(defun concurrency-benchmark (&optional (count 1000))
-  (dotimes (_ count)
-    (uiop:launch-program (format nil *curl* (random count))
-                         :output *standard-output*)))
-
-(concurrency-benchmark)
+  (let ((msg nil))
+    (time (assert (enqueue (random (/ rows 100)) "hi")))
+    (time (multiple-value-bind (resp receipt-id) (dequeue)
+            (assert resp)
+            (setf msg receipt-id)))
+    (time (assert (delete-message msg)))))

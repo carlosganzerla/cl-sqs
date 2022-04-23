@@ -1,6 +1,4 @@
-(ql:quickload :dexador)
-(ql:quickload :postmodern)
-(ql:quickload :cl-sqs)
+(in-package #:cl-sqs-test)
 
 (defvar *consumed*)
 (defparameter *db* (cl-sqs::make-database))
@@ -8,28 +6,16 @@
 
 (defun producer (id count)
   (dotimes (x count)
-    (let ((content (list :message x :producer id)))
-      (multiple-value-bind (resp code)
-        (dexador:post 
-          (format nil "http://localhost:5000/queue?message-group-id=~A"
-                  (random count))
-          :content (write-to-string content)
-          :use-connection-pool nil)
-        (when (/= code 200)
-          (format t "Response ~A, code ~A" resp code)
-          (error "Test failed"))))))
+    (unless (enqueue (random count) (list :message x :producer id))
+      (error "Test failed"))))
 
 (defun consumer (target)
   (do ()
       ((>= (length (car *consumed*)) target))
-      (multiple-value-bind (resp code headers)
-        (dexador:get "http://localhost:5000/queue?visibility-timeout=86400"
-                     :use-connection-pool nil)
-        (when (= 200 code)
-          (sb-ext:atomic-push resp (car *consumed*))
-          (dexador:delete
-            (format nil "http://localhost:5000/queue?message-receipt-id=~A"
-                    (gethash "message-receipt-id" headers)))))))
+      (multiple-value-bind (payload receipt-id) (dequeue)
+        (when payload
+          (sb-ext:atomic-push payload (car *consumed*))
+          (delete-message receipt-id)))))
 
 (defun clean-queue ()
   (cl-sqs::with-database 
@@ -47,6 +33,7 @@
 
 
 (defun multi-threaded-test (&key (count 100) (producers 10) (consumers 10))
+  "Check if concurrent producers/consumers sustain a consistent workflow"
   (clean-queue)
   (let* ((*consumed* (list nil))
          (threads (append (loop for x from 0 to (1- producers) collect
