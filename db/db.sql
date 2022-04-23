@@ -1,3 +1,5 @@
+CREATE EXTENSION plpgsql;
+
 CREATE TABLE message (
     id uuid NOT NULL PRIMARY KEY,
     group_id varchar(128) NOT NULL,
