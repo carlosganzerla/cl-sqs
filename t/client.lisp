@@ -3,7 +3,7 @@
 (defun enqueue (group-id payload)
   (multiple-value-bind (resp code headers)
     (dexador:post
-      (format nil "http://localhost:5000/queue?message-group-id=~A"
+      (format nil "http://localhost:5000/queue?group-id=~A"
               group-id)
       :content (write-to-string payload)
       :use-connection-pool nil)
@@ -24,7 +24,7 @@
 (defun delete-message (receipt-id)
   (multiple-value-bind (resp code headers)
     (dexador:delete
-      (format nil "http://localhost:5000/queue?message-receipt-id=~A"
+      (format nil "http://localhost:5000/queue?receipt-id=~A"
               receipt-id)
       :use-connection-pool nil)
     (declare (ignore resp headers))

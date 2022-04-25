@@ -1,13 +1,20 @@
-WITH next_message AS (
+WITH visible_messages AS (
     SELECT
-        id
+        id,
+        created_at
     FROM
         message
     WHERE
         group_head = true AND
         visible_at <= NOW()
     ORDER BY
-        created_at
+        group_id
+),
+next_message AS (
+    SELECT
+        *
+    FROM
+        visible_messages
     LIMIT 1
     FOR UPDATE
 )

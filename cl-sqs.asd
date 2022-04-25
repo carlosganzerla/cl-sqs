@@ -6,6 +6,7 @@
   :pathname "src/"
   :components ((:file "package")
                (:file "utils")
+               (:file "log")
                (:file "schema")
                (:file "db")
                (:file "server"))

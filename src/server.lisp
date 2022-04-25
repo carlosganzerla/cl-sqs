@@ -104,17 +104,17 @@
 
 (defun post-handler (params)
   (let ((payload (read-payload)))
-    (enqueue-schema-bind params (deduplication-id message-group-id)
+    (enqueue-schema-bind params (deduplication-id group-id)
       (with-response
-        (enqueue message-group-id payload deduplication-id)))))
+        (enqueue group-id payload deduplication-id)))))
 
 (defun patch-handler (params)
-  (change-visibility-schema-bind params (message-receipt-id visibility-timeout)
-    (with-response (change-visibility message-receipt-id visibility-timeout))))
+  (change-visibility-schema-bind params (receipt-id visibility-timeout)
+    (with-response (change-visibility receipt-id visibility-timeout))))
 
 (defun delete-handler (params)
-  (delete-schema-bind params (message-receipt-id)
-    (with-response (delete-message message-receipt-id))))
+  (delete-schema-bind params (receipt-id)
+    (with-response (delete-message receipt-id))))
 
 (defun request-handler (*request*)
   (with-request (params)
@@ -126,8 +126,7 @@
       (t (response 405)))))
 
 (defun start ()
+  (start-logger)
   (apply #'woo:run #'request-handler 
          (let ((args (sb-ext:posix-getenv "WOO_ARGS")))
-           (if args
-               (read-from-string args)
-               (list :address "0.0.0.0" :port 80 :debug nil :worker-num 4)))))
+           (and args (read-from-string args)))))

@@ -1,4 +1,5 @@
 CREATE EXTENSION plpgsql;
+CREATE EXTENSION "uuid-ossp";
 
 CREATE TABLE message (
     id uuid NOT NULL PRIMARY KEY,

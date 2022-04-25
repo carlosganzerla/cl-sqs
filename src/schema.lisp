@@ -38,12 +38,12 @@
                            :converter #'parse-integer))
 
 (defschema delete-schema
-  (message-receipt-id :target uuid))
+  (receipt-id :target uuid))
 
 (defschema change-visibility-schema
-  (message-receipt-id :target uuid)
+  (receipt-id :target uuid)
   (visibility-timeout :target (integer 0 86400) :converter #'parse-integer))
 
 (defschema enqueue-schema
-  (message-group-id :target varchar128)
+  (group-id :target varchar128)
   ((deduplication-id :NULL) :target (or (eql :NULL) varchar128)))

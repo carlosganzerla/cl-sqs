@@ -26,7 +26,7 @@ services:
     build: .
     environment:
       DB_HOST: postgres
-      API_KEY: test_key
+      WOO_ARGS: (:port 80 :debug nil :address "0.0.0.0")
     ports:
       - 5000:80
     volumes:
