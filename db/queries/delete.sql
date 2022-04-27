@@ -1,10 +1,22 @@
 WITH previous_message AS (
-    DELETE FROM
+    SELECT
+        id,
+        group_id,
+        pg_advisory_xact_lock(hashtextextended(group_id, 0))
+    FROM
         message
     WHERE
         receipt_id = $1 AND
         group_head = true
-    RETURNING id, group_id
+),
+deleted_message AS (
+    DELETE FROM 
+        message
+	USING
+		previous_message
+	WHERE
+		previous_message.id = message.id
+    RETURNING message.group_id
 ),
 next_message AS (
     SELECT 
@@ -12,9 +24,9 @@ next_message AS (
     FROM
         message
     INNER JOIN
-        previous_message
+        deleted_message
     ON
-        previous_message.group_id = message.group_id
+        deleted_message.group_id = message.group_id
     WHERE
         group_head = false
     ORDER BY

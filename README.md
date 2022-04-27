@@ -22,11 +22,37 @@ message formats. Additional message data is sent on the response headers.
 
 ## How the queue works
 
+The queue is very similar to SQS. In fact, it can be viewed as various queues.
+Messages are posted by consumers, and the ordering of the messages is the
+creation time stamp on the persistence medium (unlike SQS, which uses the
+sender time stamp). When enqueueing a message, each producer must specify a
+group id and a de-duplication id. Messages belonging to a specific group id can
+be viewed as a queue on their own. The de-duplication id prevents
+adding duplicate messages to the queue, for a particular group, until that
+message is deleted (SQS, on the other hand, allows choosing the de-duplication
+scope and the de-duplication id is only valid on a particular time window).
+
+Since the queue is meant to be used on distributed systems, when a consumer
+dequeues a message it's not deleted automatically. It becomes invisible for
+other consumers, until the visibility timeout has passed. If the timeout has
+passed, and the message was not deleted, other consumers may see it. Also, if a
+message for a given group is received, but not deleted, no messages from the
+same group can be retrieved, until that message is deleted. Each time a message
+is received, the API returns a receipt id. This id changes each time a given
+message is read. This receipt is used to delete the message. This ensures that
+only the consumer which last received the message can delete it. Also, the
+receipt id can be used to change the visibility timeout of a given message.
+This can be useful if the message is meant to be read again by other consumers,
+after some processing finishes successfully.
+
 ## API
 
 ## Security
 
 ### Database
+
+All messages are stored on the `message` table, along with their payloads and
+other data. More details on the [database](db/db.sql) file.
 
 ### Authentication
 

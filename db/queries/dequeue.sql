@@ -12,9 +12,14 @@ WITH visible_messages AS (
 ),
 next_message AS (
     SELECT
-        *
+        id
     FROM
-        visible_messages
+        message
+    WHERE
+        group_head = true AND
+        visible_at <= NOW()
+    ORDER BY
+        created_at
     LIMIT 1
     FOR UPDATE
 )

@@ -1,2 +1,3 @@
 (defpackage #:cl-sqs-test
-  (:use #:cl))
+  (:use #:cl)
+  (:export #:multi-threaded-test #:database-benchmark))

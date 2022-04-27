@@ -5,7 +5,6 @@
 (defun %log-data (args)
   (format t "[~A] ~A~%" (get-timestamp-string) (apply #'format nil args)))
 
-
 (defun log-data (&rest args)
   (sb-concurrency:enqueue args *queue*))
 
