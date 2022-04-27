@@ -47,7 +47,150 @@ after some processing finishes successfully.
 
 ## API
 
+The API is very simple. One path `/queue` is used to all request. Each one of
+the four operations uses a semantically correspondent HTTP method. To
+authenticate requests, use the `api-key` header on the request (see more on the
+section below). This header can be omitted if no `API_KEY` is set. Only the
+payload is sent on the request body, as plain text (`text/plain`). All
+parameters are sent via URL params.
+
+The API is unopinionated about message format. Everything is seen as plain
+text. There some downsides, which most of you already know, but let me talk
+about the upsides:
+
+- No time spent on validation (this can make a difference on larger payloads).
+- User can choose the format that bests suits them (S-Expressions is a
+ classical example).
+- Users can use multiple formats (this is very rare, and likely to be a bad
+ idea, but sometimes it can be useful due to some external constraint).
+
+Since the API is unopinionated about the format, the are two types of data
+returned by a request:
+
+- On the body: The payload (only on dequeue)
+- On the headers: additional message data (timestamps, message id, receipt id,
+ etc.)
+
+Data is returned only on a successful code `200` response. To differentiate
+between errors, empty responses and good responses, the
+semantic HTTP status codes are used:
+
+- `200`: Response returned data successfully. Additional headers should be
+ present.
+- `204`: Response returned successfully, but with no data.
+- `401`: Unauthorized request (wrong `api-key` request header).
+- `404`: URL not found.
+- `405`: Method not allowed.
+- `422`: Invalid URL params.
+- `500`: Error on the app. See the logs.
+
+Since the URL params are very simple, only unexpected errors are logged.
+
+### Enqueue
+
+URL Parameters:
+
+- `group-id`: Required. Can be any string from 1 to 128 characters.
+- `deduplication-id`. Optional. Can be any string from 1 to 128 characters. If
+ not supplied, the de-duplication id is auto-generated making the SHA-1 hash
+ of the payload
+
+Request Body: The payload text.
+
+Response headers:
+
+- `Message-Id`: The id of the message on the database.
+- `Message-Md5`. The MD5 hash of the payload,
+- `Message-Timestamp`: The creation time stamp of the message on the
+ persistence medium. Use this to assert ordering if desired.
+
+
+Example:
+
+```shell
+curl 'http://localhost:5000/queue?group-id=my-fancy-group' -d 'Waddap' -v
+
+< HTTP/1.1 200 OK
+< Date: Wed, 27 Apr 2022 01:45:31 GMT
+< Connection: keep-alive
+< Content-Type: text/plain
+< Message-Id: ebb87403-bdf1-4608-b810-c5d56d8b0c66
+< Message-Md5: c59688cd1ef3ed3c377f240939d63a5a
+< Message-Timestamp: 1651024563183145
+< Transfer-Encoding: chunked
+```
+
+Try the same request again, and we would have:
+
+```shell
+< HTTP/1.1 204 No Content
+< Date: Wed, 27 Apr 2022 01:46:44 GMT
+< Connection: keep-alive
+< Content-Type: text/plain
+< Transfer-Encoding: chunked
+```
+
+But if we add the `deduplication-id`, the we'd have:
+
+```shell
+curl 'http://localhost:5000/queue?group-id=my-fancy-group&deduplication-id=no-dupes' -d 'Waddap' -v
+
+< HTTP/1.1 200 OK
+< Date: Wed, 27 Apr 2022 01:47:19 GMT
+< Connection: keep-alive
+< Content-Type: text/plain
+< Message-Id: fe5d0964-af81-435b-9e36-8809260e1716
+< Message-Md5: c59688cd1ef3ed3c377f240939d63a5a
+< Message-Timestamp: 1651024577831246
+< Transfer-Encoding: chunked
+```
+
+### Dequeue
+
+URL Parameters:
+
+- `visibility-timeout`: Optional. Any integer between 0 and 86400. Defaults to
+ 60. Note that if you set to 0, the dequeue operation will always return the
+ same message.
+
+```shell
+curl 'http://localhost:5000/queue?visibility-timeout=10' -v
+
+< HTTP/1.1 200 OK
+< Date: Wed, 27 Apr 2022 01:56:40 GMT
+< Connection: keep-alive
+< Content-Type: text/plain
+< Message-Receipt-Id: 2af18f7d-6475-5e64-87f3-e8e7334810ac
+< Message-Id: 24648dca-7cdc-4c76-a2bf-94e50bb949f3
+< Message-Timestamp: 1651024563183145
+< Transfer-Encoding: chunked
+```
+
+If we retry the curl before 10 seconds have elapsed, we'd have:
+
+```shell
+< HTTP/1.1 204 No Content
+< Date: Wed, 27 Apr 2022 01:55:00 GMT
+< Connection: keep-alive
+< Content-Type: text/plain
+< Transfer-Encoding: chunked
+```
+
+After this period, the first response would repeat.
+
+Note that the second enqueued message didn't show up in the second request.
+That's because they have the same group id. If they were different, it would
+show up.
+
 ## Security
+
+### Authentication
+
+There's an optional `API_KEY` environment variable that lets the user define
+an authentication key. Any crypto-safe randomly generated string of a decent
+size could do the trick (if you have SSL. See below.). I decided to keep
+authentication very simple, since the program would run on a controlled
+infrastructure. A big enough api key could be really safe.
 
 ### Database
 
@@ -56,14 +199,6 @@ other data. More details on the [database](db/db.sql) file. Check the
 [queries](db/queries) folder, also. It's recommended to create a user with the
 appropriate permissions on production. I didn't create one to not make an
 opinion about password generation/parameterization.
-
-### Authentication
-
-There's an optional `API_KEY` environment variable that lets the user define
-an authentication key. Any crypto-safe randomly generated string of a decent
-size could do the trick (if you have SSL. See below). I decided to keep
-authentication very simple, since the program would run on your controlled
-infrastructure.
 
 ### SSL
 
@@ -89,7 +224,7 @@ The following env vars are used to configure the app:
  `nil`. The values on `docker-compose.yml` seem satisfactory for basic
  production usage.
 
-### Running the code
+### Running the app
 
 `cl-sqs` is meant to run as a Docker container. A `docker-compose.yml` is
 provided to create an easy-to-use development environment. Usage on production
