@@ -10,9 +10,9 @@ should be easy enough to port to another back-end, although Woo seemed pretty
 fast (and is according to their benchmark).
 
 The concepts were borrowed from SQS, but the design of the API is slightly
-different.  A single table was and a few other support constructs are provided
-to allow the storage of messages, and the usage of indexes provide fast
-concurrent enqueue/dequeue operations. Unlike SQS, there aren't built-in
+different.  A single table was designed and a few other support constructs are
+provided to allow the storage of messages, and the usage of indexes provide
+fast concurrent enqueue/dequeue operations. Unlike SQS, there aren't built-in
 queue-wide configurations. Any customizations can be made by the user at will.
 
 The API is unopinionated about input/output format. So all input/outputs are
@@ -47,7 +47,7 @@ after some processing finishes successfully.
 
 ## API
 
-The API is very simple. One path `/queue` is used to all request. Each one of
+The API is very simple. One path `/queue` is used on all requests. Each of
 the four operations uses a semantically correspondent HTTP method. To
 authenticate requests, use the `api-key` header on the request (see more on the
 section below). This header can be omitted if no `API_KEY` is set. Only the
@@ -86,7 +86,7 @@ semantic HTTP status codes are used:
 
 Since the URL params are very simple, only unexpected errors are logged.
 
-### Enqueue
+### `POST`: Enqueue
 
 URL Parameters:
 
@@ -130,7 +130,7 @@ Try the same request again, and we would have:
 < Transfer-Encoding: chunked
 ```
 
-But if we add the `deduplication-id`, the we'd have:
+But if we add the `deduplication-id`, then we'd have:
 
 ```shell
 curl 'http://localhost:5000/queue?group-id=my-fancy-group&deduplication-id=no-dupes' -d 'Waddap' -v
@@ -145,13 +145,13 @@ curl 'http://localhost:5000/queue?group-id=my-fancy-group&deduplication-id=no-du
 < Transfer-Encoding: chunked
 ```
 
-### Dequeue
+### `GET`: Dequeue
 
 URL Parameters:
 
-- `visibility-timeout`: Optional. Any integer between 0 and 86400. Defaults to
- 60. Note that if you set to 0, the dequeue operation will always return the
- same message.
+- `visibility-timeout`: Optional. Any integer between 0 and 86400. The default
+ is 60. Note that if you set to 0, the dequeue operation will always return
+ the same message.
 
 ```shell
 curl 'http://localhost:5000/queue?visibility-timeout=10' -v
@@ -164,13 +164,15 @@ curl 'http://localhost:5000/queue?visibility-timeout=10' -v
 < Message-Id: 24648dca-7cdc-4c76-a2bf-94e50bb949f3
 < Message-Timestamp: 1651024563183145
 < Transfer-Encoding: chunked
+...
+Waddap
 ```
 
 If we retry the curl before 10 seconds have elapsed, we'd have:
 
 ```shell
 < HTTP/1.1 204 No Content
-< Date: Wed, 27 Apr 2022 01:55:00 GMT
+< Date: Wed, 27 Apr 2022 01:56:43 GMT
 < Connection: keep-alive
 < Content-Type: text/plain
 < Transfer-Encoding: chunked
@@ -181,6 +183,10 @@ After this period, the first response would repeat.
 Note that the second enqueued message didn't show up in the second request.
 That's because they have the same group id. If they were different, it would
 show up.
+
+### `DELETE`: Delete message
+
+### `PATCH`: Change visibility
 
 ## Security
 

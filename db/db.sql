@@ -63,3 +63,95 @@ BEGIN
     RETURNING *;
 END
 $BODY$
+
+CREATE OR REPLACE FUNCTION f_delete (p_message_receipt_id uuid)
+    RETURNS uuid
+    LANGUAGE 'plpgsql'
+AS $BODY$
+DECLARE
+    message_id uuid;
+    message_group_id varchar(128);
+BEGIN
+    SELECT
+        id,
+        group_id
+    INTO
+        message_id, message_group_id
+    FROM
+        message
+    WHERE
+        receipt_id = p_message_receipt_id AND
+        group_head = true;
+
+    PERFORM pg_advisory_xact_lock(hashtextextended(message_group_id, 0));
+    
+    DELETE FROM 
+        message 
+    WHERE
+        id = message_id;
+
+    WITH next_message AS (
+        SELECT 
+            message.id
+        FROM
+            message
+        WHERE
+               message_group_id = message.group_id AND
+            group_head = false
+        ORDER BY
+            created_at
+        LIMIT 1
+    )
+    UPDATE
+        message
+    SET
+        group_head = true
+    FROM
+        next_message
+    WHERE
+        message.id = next_message.id;
+    
+    RETURN message_id;
+
+END
+$BODY$
+
+
+CREATE OR REPLACE FUNCTION f_dequeue(visibility_timeout integer)
+    RETURNS SETOF message
+    LANGUAGE 'plpgsql'
+    ROWS 1
+AS $BODY$
+DECLARE
+    next_message_id uuid;
+BEGIN
+    SELECT
+        id
+    FROM
+        message
+    INTO
+        next_message_id
+    WHERE
+        group_head = true AND
+        visible_at <= NOW()
+    ORDER BY
+        created_at
+    LIMIT 1
+    FOR UPDATE;
+
+    RETURN QUERY
+        UPDATE
+            message
+        SET
+            visible_at = NOW() +  visibility_timeout * INTERVAL '1 SECOND',
+            read_count = read_count + 1,
+            receipt_id = uuid_generate_v5(
+                next_message_id,
+                concat(NOW()::text, message.group_id)
+            )
+        WHERE
+            message.id = next_message_id
+        RETURNING
+            *;
+END
+$BODY$
