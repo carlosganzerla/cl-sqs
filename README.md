@@ -49,14 +49,14 @@ after some processing finishes successfully.
 
 The API is very simple. One path `/queue` is used on all requests. Each of
 the four operations uses a semantically correspondent HTTP method. To
-authenticate requests, use the `api-key` header on the request (see more on the
-section below). This header can be omitted if no `API_KEY` is set. Only the
-payload is sent on the request body, as plain text (`text/plain`). All
+authenticate requests, an `api-key` header can be sent on the request (see more
+on the section below). This header can be omitted if no `API_KEY` is set. Only
+the payload is sent on the request body, as plain text (`text/plain`). All
 parameters are sent via URL params.
 
 The API is unopinionated about message format. Everything is seen as plain
-text. There some downsides, which most of you already know, but let me talk
-about the upsides:
+text. There are some obvious downsides, which most of you already know, but let
+me talk about the upsides:
 
 - No time spent on validation (this can make a difference on larger payloads).
 - User can choose the format that bests suits them (S-Expressions is a
@@ -100,7 +100,7 @@ Request Body: The payload text.
 Response headers:
 
 - `Message-Id`: The id of the message on the database.
-- `Message-Md5`. The MD5 hash of the payload,
+- `Message-Md5`. The MD5 hash of the payload.
 - `Message-Timestamp`: The creation time stamp of the message on the
  persistence medium. Use this to assert ordering if desired.
 
@@ -110,8 +110,6 @@ Example:
 ```shell
 curl 'http://localhost:5000/queue?group-id=my-fancy-group' -d 'Waddap' -v
 
-< HTTP/1.1 200 OK
-< Date: Wed, 27 Apr 2022 01:45:31 GMT
 < Connection: keep-alive
 < Content-Type: text/plain
 < Message-Id: ebb87403-bdf1-4608-b810-c5d56d8b0c66
@@ -123,8 +121,6 @@ curl 'http://localhost:5000/queue?group-id=my-fancy-group' -d 'Waddap' -v
 Try the same request again, and we would have:
 
 ```shell
-< HTTP/1.1 204 No Content
-< Date: Wed, 27 Apr 2022 01:46:44 GMT
 < Connection: keep-alive
 < Content-Type: text/plain
 < Transfer-Encoding: chunked
@@ -135,9 +131,6 @@ But if we add the `deduplication-id`, then we'd have:
 ```shell
 curl 'http://localhost:5000/queue?group-id=my-fancy-group&deduplication-id=no-dupes' -d 'Waddap' -v
 
-< HTTP/1.1 200 OK
-< Date: Wed, 27 Apr 2022 01:47:19 GMT
-< Connection: keep-alive
 < Content-Type: text/plain
 < Message-Id: fe5d0964-af81-435b-9e36-8809260e1716
 < Message-Md5: c59688cd1ef3ed3c377f240939d63a5a
@@ -153,12 +146,17 @@ URL Parameters:
  is 60. Note that if you set to 0, the dequeue operation will always return
  the same message.
 
+Response headers:
+
+- `Message-Id`: The id of the message on the database.
+- `Message-Receipt-Id`. The id of the message read. It's unqiue and changes for
+ each read.
+- `Message-Timestamp`: The creation time stamp of the message on the
+ persistence medium. Use this to assert ordering if desired.
+
 ```shell
 curl 'http://localhost:5000/queue?visibility-timeout=10' -v
 
-< HTTP/1.1 200 OK
-< Date: Wed, 27 Apr 2022 01:56:40 GMT
-< Connection: keep-alive
 < Content-Type: text/plain
 < Message-Receipt-Id: 2af18f7d-6475-5e64-87f3-e8e7334810ac
 < Message-Id: 24648dca-7cdc-4c76-a2bf-94e50bb949f3
@@ -171,8 +169,6 @@ Waddap
 If we retry the curl before 10 seconds have elapsed, we'd have:
 
 ```shell
-< HTTP/1.1 204 No Content
-< Date: Wed, 27 Apr 2022 01:56:43 GMT
 < Connection: keep-alive
 < Content-Type: text/plain
 < Transfer-Encoding: chunked
@@ -186,7 +182,50 @@ show up.
 
 ### `DELETE`: Delete message
 
+- `receipt-id`: Required. The receipt id obtained on the read of a message.
+
+Response headers:
+
+- `Message-Id`: The id of the deleted message on the database.
+
+After receiving a message, simply:
+
+```shell
+curl -X 'DELETE' 'http://localhost:5000/queue?receipt-id=2af18f7d-6475-5e64-87f3-e8e7334810ac' -v 
+
+< Connection: keep-alive
+< Content-Type: text/plain
+< Message-Id: 24648dca-7cdc-4c76-a2bf-94e50bb949f3
+< Transfer-Encoding: chunked
+```
+
+If the receipt id doesn't exist anymore on the database (that is, someone else
+read the message after you), the 204 empty response is returned.
+
 ### `PATCH`: Change visibility
+
+- `receipt-id`: Required. The receipt id obtained on the read of a message.
+- `visibility-timeout`: Required. The new visibility timeout that's desired.
+ Note that the timeout adds up to the current date, so 0 would make the
+ message visible instantly, while any value greater than 0 would make a
+ message invisible instantly.
+
+Response headers:
+
+- `Message-Id`: The id of the updated message on the database.
+
+Almost equal to `DELETE`:
+
+```shell
+curl -X 'PATCH' 'http://localhost:5000/queue?receipt-id=2af18f7d-6475-5e64-87f3-e8e7334810ac?visibility-timeout=30' -v 
+
+< Connection: keep-alive
+< Content-Type: text/plain
+< Message-Id: 24648dca-7cdc-4c76-a2bf-94e50bb949f3
+< Transfer-Encoding: chunked
+```
+
+The same receipt id constraints from `DELETE` apply to this method.
 
 ## Security
 
@@ -196,12 +235,12 @@ There's an optional `API_KEY` environment variable that lets the user define
 an authentication key. Any crypto-safe randomly generated string of a decent
 size could do the trick (if you have SSL. See below.). I decided to keep
 authentication very simple, since the program would run on a controlled
-infrastructure. A big enough api key could be really safe.
+infrastructure. A big enough api key should be safe on most cases.
 
 ### Database
 
 All messages are stored on the `message` table, along with their payloads and
-other data. More details on the [database](db/db.sql) file. Check the
+other data. More details on the [](db/db.sql) file. Check the
 [queries](db/queries) folder, also. It's recommended to create a user with the
 appropriate permissions on production. I didn't create one to not make an
 opinion about password generation/parameterization.
@@ -225,10 +264,9 @@ The following env vars are used to configure the app:
 - `DB_PASSWORD`: Password of the Postgres instance (defaults to `postgres`).
 - `DB_NAME`: Name of the Postgres instance database (defaults to `postgres`).
 - `API_KEY`: The API key used to authenticate requests. Defaults to `nil`, in
- which case no authentication is used.
+ which case no authentication is used and the `api-key` header can be omitted.
 - `WOO_ARGS`: A prop-list containing the keyword args of `woo:run`. Defaults to
- `nil`. The values on `docker-compose.yml` seem satisfactory for basic
- production usage.
+ `nil`. The values on `docker-compose.yml` seem satisfactory for basic usage.
 
 ### Running the app
 
@@ -250,10 +288,10 @@ docker build -t cl-sqs .
 
 And run the container with the desired options (see the [`docker
 run`](https://docs.docker.com/engine/reference/commandline/run/) for more
-information.)
+information).
 
-**Note**: This image is by no means an optimized image. It's fast enough, but I
-could not find a slim Common Lisp image.
+**Note**: This image is by no means an optimized image. It's seems good enough,
+but I could not find a slim Common Lisp image.
 
 To run on the REPL:
 
@@ -265,7 +303,7 @@ To run on the REPL:
 Make sure that the folder you've cloned the code to is registered on quicklisp
 local projects repository.
 
-To run the tests, it's recommend to use the `docker-compose.yml`. I didn't use
+To run the tests, it's recommended to use the `docker-compose.yml`. I didn't use
 a unit-test framework, since there aren't unit tests, just "integration" tests:
 
 ```lisp
@@ -291,7 +329,8 @@ For 1 million messages, the average time of each operation is pretty much
 similar, something like ~3ms. This goes up, until the query index points to a
 new page, and then go slightly down. For 10 million messages I didn't do
 extensive testing (takes too long to insert all that lol), but the results were
-more or less the same.
+more or less the same. Any half decent machine running the Postgres instance
+would yield satisfactory results as well.
 
 I didn't test  concurrent `cl-sqs` instances, but it's assumed to work if they
 point to the same Postgres instance (as the DB manages all concurrency). A load
