@@ -7,8 +7,8 @@ INSERT INTO
         created_at,
         visible_at,
         group_head
-    )     
-SELECT 
+    )
+SELECT
     gen_random_uuid(),
     (series % $1)::text,
     series::text,
@@ -19,5 +19,5 @@ SELECT
         WHEN series < $1 THEN true
         ELSE false
     END
-FROM 
+FROM
     generate_series(0, $2 - 1) series;

@@ -3,11 +3,11 @@
 (defmacro defschema (name &body fields)
   (let* ((macro-name (intern (concatenate 'string (string name) "-BIND")))
          (field-params (mapcar #'car fields)))
-    `(progn 
+    `(progn
        (defun ,name (proplist)
          (destructuring-bind (&key ,@field-params) proplist
-           (append 
-             ,@(mapcar 
+           (append
+             ,@(mapcar
                  (lambda (field)
                    (destructuring-bind (name &key
                                              (target t)

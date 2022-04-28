@@ -16,5 +16,6 @@
     (time (assert (enqueue (random (/ rows 100)) "hi")))
     (time (multiple-value-bind (resp receipt-id) (dequeue)
             (assert resp)
+            (print resp)
             (setf msg receipt-id)))
     (time (assert (delete-message msg)))))

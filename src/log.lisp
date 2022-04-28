@@ -9,7 +9,7 @@
   (sb-concurrency:enqueue args *queue*))
 
 (defun start-logger ()
-  (sb-thread:make-thread 
+  (sb-thread:make-thread
     (lambda (queue)
       (loop
         (let ((message (sb-concurrency:dequeue queue)))

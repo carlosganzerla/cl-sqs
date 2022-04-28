@@ -8,7 +8,7 @@
                      :user (try-get-env "DB_USER" "postgres")
                      :password (try-get-env "DB_PASSWORD" "postgres")
                      :host (try-get-env "DB_HOST" "localhost")
-                     :port (parse-integer (try-get-env "DB_PORT" "5432")))) 
+                     :port (parse-integer (try-get-env "DB_PORT" "5432"))))
 
 (defconstantsafe +path+ "/queue")
 (defconstantsafe +max-payload-size+ 65535)
@@ -75,7 +75,7 @@
 (defmacro with-request ((params) &body body)
   `(block nil
           (handler-case
-            (let ((,params (parse-qs (getf *request* :query-string)))) 
+            (let ((,params (parse-qs (getf *request* :query-string))))
               (unless (equal +path+ (getf *request* :path-info))
                 (return (response 404)))
               (unless (or (not *api-key*)
@@ -127,6 +127,6 @@
 
 (defun start ()
   (start-logger)
-  (apply #'woo:run #'request-handler 
+  (apply #'woo:run #'request-handler
          (let ((args (sb-ext:posix-getenv "WOO_ARGS")))
            (and args (read-from-string args)))))

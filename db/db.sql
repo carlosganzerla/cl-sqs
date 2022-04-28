@@ -7,7 +7,7 @@ CREATE TABLE message (
     deduplication_id varchar(128) NOT NULL,
     group_head boolean NOT NULL,
     payload varchar(65535) NOT NULL,
-    visible_at timestamptz NOT NULL, 
+    visible_at timestamptz NOT NULL,
     created_at timestamptz NOT NULL DEFAULT NOW(),
     read_count integer NOT NULL DEFAULT 0,
     receipt_id uuid,
@@ -19,7 +19,7 @@ CREATE UNIQUE INDEX message_receipt_id_key ON message (receipt_id)
 
 CREATE INDEX message_created_at_idx ON message (created_at);
 
-CREATE UNIQUE INDEX message_group_id_group_head_key 
+CREATE UNIQUE INDEX message_group_id_group_head_key
     ON message (group_id, group_head)
     WHERE group_head = true;
 
@@ -84,14 +84,14 @@ BEGIN
         group_head = true;
 
     PERFORM pg_advisory_xact_lock(hashtextextended(message_group_id, 0));
-    
-    DELETE FROM 
-        message 
+
+    DELETE FROM
+        message
     WHERE
         id = message_id;
 
     WITH next_message AS (
-        SELECT 
+        SELECT
             message.id
         FROM
             message
@@ -110,7 +110,7 @@ BEGIN
         next_message
     WHERE
         message.id = next_message.id;
-    
+
     RETURN message_id;
 
 END

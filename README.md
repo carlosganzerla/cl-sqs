@@ -271,9 +271,9 @@ a unit-test framework, since there aren't unit tests, just "integration" tests:
 ```lisp
 (ql:quickload :cl-sqs-test)
 ;; ensures that the queues works under concurrency
-(cl-sqs-test:multi-threaded-test) 
+(cl-sqs-test:multi-threaded-test)
 ;; benchmarks the database
-(cl-sqs-test:database-benchmark) 
+(cl-sqs-test:database-benchmark)
 ```
 
 Check the [tests code](t/) to see more details.

@@ -15,7 +15,7 @@
        ,@body)))
 
 (defmacro query (db &rest args)
-  `(with-database 
+  `(with-database
      (let ((results (postmodern:query ,@args :array-hash))
            (headers))
        (if (> (length results) 0)
@@ -23,7 +23,7 @@
              (maphash (lambda (k v)
                         (unless (string= k "payload")
                           (push (str-to-kw k) headers)
-                          (push v headers))) 
+                          (push v headers)))
                       (aref results 0))
              (values (or (gethash "payload" (aref results 0)) "")
                      (nreverse headers)))
@@ -38,7 +38,7 @@
   (query *db* (read-file-memo #p"db/queries/dequeue.sql") visibility-timeout))
 
 (defun change-visibility (receipt-id timeout)
-  (query *db* (read-file-memo #p"db/queries/change_visibility.sql") 
+  (query *db* (read-file-memo #p"db/queries/change_visibility.sql")
          receipt-id timeout))
 
 (defun delete-message (receipt-id)

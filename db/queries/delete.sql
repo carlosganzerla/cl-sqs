@@ -1,4 +1,4 @@
-SELECT 
+SELECT
     f_delete "message-id"
 FROM
     f_delete($1)

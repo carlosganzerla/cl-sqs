@@ -18,7 +18,7 @@
           (delete-message receipt-id)))))
 
 (defun clean-queue ()
-  (cl-sqs::with-database 
+  (cl-sqs::with-database
     (postmodern:query "DELETE FROM message")))
 
 (defun check-results ()
@@ -37,12 +37,12 @@
   (clean-queue)
   (let* ((*consumed* (list nil))
          (threads (append (loop for x from 0 to (1- producers) collect
-                                (sb-thread:make-thread 
+                                (sb-thread:make-thread
                                   (lambda (id)
                                     (producer id count))
                                   :arguments (list x)))
                           (loop for x from 0 to (1- consumers) collect
-                                (sb-thread:make-thread 
+                                (sb-thread:make-thread
                                   (lambda (*consumed*)
                                     (consumer (* count producers)))
                                   :arguments (list *consumed*))))))
